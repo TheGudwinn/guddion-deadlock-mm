@@ -1,0 +1,40 @@
+CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+
+CREATE TABLE catalog_cache (
+  source TEXT NOT NULL, remote_id TEXT NOT NULL,
+  json JSONB NOT NULL, fetched_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (source, remote_id));
+
+CREATE TABLE mods (
+  id BIGSERIAL PRIMARY KEY, source TEXT, remote_id TEXT,
+  name TEXT NOT NULL, version TEXT,
+  installed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  enabled BOOLEAN NOT NULL DEFAULT TRUE);
+
+CREATE TABLE mod_files (
+  id BIGSERIAL PRIMARY KEY,
+  mod_id BIGINT NOT NULL REFERENCES mods(id) ON DELETE CASCADE,
+  stored_path TEXT NOT NULL, sha256 TEXT, size BIGINT NOT NULL);
+
+CREATE TABLE profiles (
+  id BIGSERIAL PRIMARY KEY, name TEXT UNIQUE NOT NULL,
+  active BOOLEAN NOT NULL DEFAULT FALSE);
+
+CREATE TABLE profile_mods (
+  profile_id BIGINT REFERENCES profiles(id) ON DELETE CASCADE,
+  mod_id BIGINT REFERENCES mods(id) ON DELETE CASCADE,
+  position INT NOT NULL, enabled BOOLEAN NOT NULL DEFAULT TRUE,
+  PRIMARY KEY (profile_id, mod_id));
+
+CREATE TABLE downloads (
+  id BIGSERIAL PRIMARY KEY, url TEXT NOT NULL, mirrors JSONB,
+  dest TEXT NOT NULL, expected_sha256 TEXT, total BIGINT,
+  downloaded BIGINT NOT NULL DEFAULT 0, etag TEXT,
+  state TEXT NOT NULL, attempts INT NOT NULL DEFAULT 0, error TEXT);
+
+CREATE TABLE journal (
+  id BIGSERIAL PRIMARY KEY, ts TIMESTAMPTZ NOT NULL DEFAULT now(),
+  op TEXT NOT NULL, target TEXT NOT NULL, backup_path TEXT, detail TEXT,
+  rolled_back BOOLEAN NOT NULL DEFAULT FALSE);
+
+CREATE TABLE game_state (key TEXT PRIMARY KEY, value TEXT);

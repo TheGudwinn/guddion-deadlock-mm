@@ -1,0 +1,59 @@
+[package]
+name = "deadlock-mm"
+version = "0.1.0"
+description = "Deadlock mod manager"
+authors = ["you"]
+edition = "2024"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "deadlock_mm_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-opener = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1.54.1", features = ["rt-multi-thread", "macros", "fs", "time", "io-util", "sync"] }
+futures-util = "0.3.34"
+sha2 = "0.11.1"
+hex = "0.4.3"
+thiserror = "2.0.21"
+url = "2.5.8"
+reqwest = { version = "0.13.5", default-features = false, features = ["rustls", "socks", "stream", "json"] }
+postgresql_embedded = { version = "0.22.0", features = ["bundled", "tokio"] }
+sqlx = { version = "0.9.0", default-features = false, features = ["runtime-tokio", "postgres", "migrate", "macros"] }
+zip = { version = "9.5.1", default-features = false, features = ["deflate"] }
+crc32fast = "1.5.5"
+async-trait = "0.1.92"
+md-5 = "0.11.0"
+sevenz-rust2 = "0.25.0"
+unrar = "0.5.8"
+tauri-plugin-dialog = "2.8.4"
+tauri-plugin-updater = "2"
+
+
+# Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true
+
+[dev-dependencies]
+base64 = "0.23.1"
+minisign-verify = "0.3"
+tempfile = "3.27.0"
+wiremock = "0.6.5"
+
+[target."cfg(windows)".dependencies]
+winreg = "0.56.0"

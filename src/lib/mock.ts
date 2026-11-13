@@ -1,0 +1,209 @@
+// Development-only sample data so the UI can be previewed in a regular browser.
+import type { InstalledMod, Mod, ModDetails, QueueRow, SettingsView } from "./api";
+
+const img = "https://images.gamebanana.com/img/ss/mods/";
+const mk = (id: number, name: string, author: string, category: string, likes: number, views: number, thumb: string): Mod => ({
+  source: "gamebanana",
+  id: String(id),
+  name,
+  author,
+  category,
+  thumbnail: thumb ? `${img}530-90_${thumb}` : null,
+  version: "1.0",
+  likes,
+  views,
+  updated_at: 1794371049,
+  page_url: `https://gamebanana.com/mods/${id}`,
+});
+
+const MODS: Mod[] = [
+  mk(650634, "QOL Lock [INSTANT SAVE/LOAD UPDATE]", "civo", "Quality of Life/Fixes", 307, 236549, "6995649268824.jpg"),
+  mk(664041, "Enhanced QuickBuy", "northwind", "HUD", 211, 98211, ""),
+  mk(671416, "Old Ability Icons Restored", "mara_k", "HUD", 154, 61804, ""),
+  mk(698127, "Cynthia as Silver HUD", "lowtide", "Skins", 98, 40112, ""),
+  mk(725413, "4:3 Stretched HUD Fix (Healthbar + Shop)", "pk4", "HUD", 76, 25560, ""),
+  mk(694343, "Vindicta Minimal Scope Crosshair", "ashgrove", "Gameplay Modifications", 64, 19907, ""),
+];
+
+const INSTALLED: InstalledMod[] = [
+  {
+    id: 3,
+    source: "gamebanana",
+    name: "QOL Lock [INSTANT SAVE/LOAD UPDATE]",
+    version: "4.0.5",
+    remote_id: "650634",
+    slot: 1,
+    enabled: true,
+    game_build: "26546669",
+    files: [{ name: "ddmm3_pak01_dir.vpk", size: 10116149, present: true, enabled: true }],
+  },
+  {
+    id: 7,
+    source: "gamebanana",
+    name: "Old Ability Icons Restored",
+    version: "1.2",
+    remote_id: "671416",
+    slot: 2,
+    enabled: false,
+    game_build: "26401200",
+    files: [{ name: "ddmm7_pak02_dir.vpk", size: 2318004, present: true, enabled: false }],
+  },
+];
+
+let settings: SettingsView = {
+  proxy: { mode: "system", kind: "http", host: "", port: 0, username: null, has_password: false },
+  mirrors: ["https://gamebanana.com"],
+  game_path: null,
+  check_updates: true,
+  update_endpoints: ["https://github.com/example/deadlock-mm/releases/latest/download/latest.json"],
+};
+
+const QUEUE: QueueRow[] = [
+  { id: 1, remote_id: "698127", name: "Cynthia as Silver HUD", file_name: "cynthia_silver_hud.zip", state: "downloading", downloaded: 14_300_000, total: 41_000_000, error: null, slot: null, overlaps: null },
+  { id: 2, remote_id: "725413", name: "4:3 Stretched HUD Fix (Healthbar + Shop)", file_name: "hud43_fix.rar", state: "queued", downloaded: 0, total: 3_200_000, error: null, slot: null, overlaps: null },
+  { id: 3, remote_id: "694343", name: "Vindicta Minimal Scope Crosshair", file_name: "vindicta_scope.7z", state: "paused", downloaded: 1_100_000, total: 5_000_000, error: null, slot: null, overlaps: null },
+  { id: 4, remote_id: "664041", name: "Enhanced QuickBuy", file_name: "quickbuy.zip", state: "failed", downloaded: 0, total: 900_000, error: "cannot read archive: bad zip", slot: null, overlaps: null },
+  { id: 5, remote_id: "650634", name: "QOL Lock [INSTANT SAVE/LOAD UPDATE]", file_name: "qollock_405.zip", state: "done", downloaded: 10_116_149, total: 10_116_149, error: null, slot: 1, overlaps: 1 },
+];
+
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
+  await wait(120);
+  const r = (v: unknown) => v as T;
+  switch (cmd) {
+    case "detect_game":
+      return r({ root: "D:\\SteamLibrary\\steamapps\\common\\Deadlock", addons_dir: "", gameinfo: "", build_id: "26546669" });
+    case "list_categories":
+      return r([
+        { id: 1, name: "HUD", item_count: 865, has_children: true },
+        { id: 2, name: "Skins", item_count: 2210, has_children: true },
+        { id: 3, name: "Quality of Life/Fixes", item_count: 140, has_children: false },
+      ]);
+    case "search_mods":
+      return r({ items: MODS, total: 6062, page: 1, has_more: true, cached_at: null });
+    case "mod_details": {
+      const m = MODS.find((x) => x.id === args?.id) ?? MODS[0];
+      const d: ModDetails = {
+        summary: m,
+        description_html: "<p>Sample description for the design preview.</p>",
+        downloads: 202826,
+        images: m.thumbnail ? [m.thumbnail] : [],
+        files: [
+          { id: "1", name: "qollock_405_16october.zip", size: 10116149, url: "", md5: "8901a2ab494ba23669b4f18533651830", av_clean: true },
+          { id: "2", name: "alt_version.rar", size: 4412009, url: "", md5: null, av_clean: false },
+        ],
+        cached_at: null,
+      };
+      return r(d);
+    }
+    case "list_installed":
+      return r(INSTALLED);
+    case "list_foreign_addons":
+      return r([
+        { name: "569650_pak06_dir.vpk", size: 67069166, entries: 412, error: null },
+        { name: "659083_pak67_dir.vpk", size: 78026643, entries: 530, error: null },
+        { name: "666724_pak12_dir.vpk", size: 58384245, entries: 288, error: null },
+      ]);
+    case "list_profiles":
+      return r([
+        {
+          id: 1,
+          name: "Рейтинг",
+          active: true,
+          mods: [
+            { source: "gamebanana", remote_id: "650634", name: "QOL Lock [INSTANT SAVE/LOAD UPDATE]", version: "4.0.5", enabled: true, position: 0, installed: true },
+            { source: "gamebanana", remote_id: "671416", name: "Old Ability Icons Restored", version: "1.2", enabled: false, position: 1, installed: true },
+          ],
+        },
+        {
+          id: 2,
+          name: "Со скинами",
+          active: false,
+          mods: [
+            { source: "gamebanana", remote_id: "650634", name: "QOL Lock [INSTANT SAVE/LOAD UPDATE]", version: "4.0.5", enabled: true, position: 0, installed: true },
+            { source: "gamebanana", remote_id: "698127", name: "Cynthia as Silver HUD", version: "1.0", enabled: true, position: 1, installed: false },
+          ],
+        },
+      ]);
+    case "apply_profile":
+      return r({ enabled: 1, disabled: 1, missing: [] });
+    case "get_settings":
+      return r(settings);
+    case "save_settings": {
+      const inp = (args as { input: { proxy: { mode: string; kind: string; host: string; port: number; username: string | null; password: string | null }; mirrors: string[]; game_path: string | null } }).input;
+      settings = {
+        proxy: {
+          mode: inp.proxy.mode as "system",
+          kind: inp.proxy.kind as "http",
+          host: inp.proxy.host,
+          port: inp.proxy.port,
+          username: inp.proxy.username,
+          has_password: !!inp.proxy.password || (settings.proxy.has_password && inp.proxy.password === null),
+        },
+        mirrors: inp.mirrors.map((m) => m.trim()).filter(Boolean),
+        game_path: inp.game_path,
+        check_updates: (args as { input: { check_updates: boolean } }).input.check_updates,
+        update_endpoints: (args as { input: { update_endpoints: string[] } }).input.update_endpoints.map((m) => m.trim()).filter(Boolean),
+      };
+      return r(settings);
+    }
+    case "run_diagnostics":
+      return r([
+        {
+          url: "https://gamebanana.com",
+          host: "gamebanana.com",
+          verdict: "ok",
+          steps: [
+            { name: "dns", state: "ok", ms: 14, detail: "172.67.12.8, 104.21.4.3" },
+            { name: "tcp", state: "ok", ms: 31, detail: "172.67.12.8:443" },
+            { name: "http", state: "ok", ms: 212, detail: "200" },
+          ],
+        },
+        {
+          url: "https://api.github.com",
+          host: "api.github.com",
+          verdict: "tcp_failed",
+          steps: [
+            { name: "dns", state: "ok", ms: 22, detail: "140.82.121.6" },
+            { name: "tcp", state: "failed", ms: 8001, detail: "timeout" },
+          ],
+        },
+      ]);
+    case "reorder_mods": {
+      const ids = (args as { order: number[] }).order;
+      const slots = INSTALLED.map((m) => m.slot).sort((a, b) => (a ?? 0) - (b ?? 0));
+      const next = ids.map((id) => INSTALLED.find((m) => m.id === id)!);
+      next.forEach((m, i) => (m.slot = slots[i]));
+      INSTALLED.splice(0, INSTALLED.length, ...next);
+      return r(undefined);
+    }
+    case "check_mod_updates":
+      return r({ updates: [{ mod_id: 7, name: "Old Ability Icons Restored", installed_version: "1.2", latest_version: "1.3", file_name: "old_icons_v13.zip" }], checked: 2, failed: 0, offline: false });
+    case "update_mod":
+      return r({ name: "Old Ability Icons Restored", slot: 2, overlaps: [] });
+    case "list_queue":
+      return r(QUEUE);
+    case "enqueue_install":
+    case "pause_download":
+    case "resume_download":
+    case "cancel_download":
+    case "remove_download":
+    case "clear_finished_downloads":
+    case "pause_all_downloads":
+    case "resume_all_downloads":
+      return r(1);
+    case "app_version":
+      return r("0.1.0");
+    case "check_update":
+      return r({ version: "0.2.0", current: "0.1.0", notes: "Порядок модов, профили, настройки сети." });
+    case "install_update":
+      return r(undefined);
+    case "last_action":
+      return r({ kind: "install", mod_name: "Old Ability Icons Restored" });
+    case "install_mod":
+      return r({ mod_id: 9, name: "Sample", slot: 3, overlaps: [] });
+    default:
+      return r(undefined);
+  }
+}

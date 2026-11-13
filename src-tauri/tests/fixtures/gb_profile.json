@@ -1,0 +1,406 @@
+{
+ "_idRow": 650634,
+ "_nStatus": "0",
+ "_bIsPrivate": false,
+ "_bAccessorIsSubmitter": false,
+ "_bIsTrashed": false,
+ "_bIsWithheld": false,
+ "_sName": "QOL Lock [INSTANT SAVE/LOAD UPDATE]",
+ "_sCommentsMode": "hidden",
+ "_tsDateModified": 1794371049,
+ "_tsDateAdded": 1770149407,
+ "_sProfileUrl": "https://gamebanana.com/mods/650634",
+ "_aPreviewMedia": {
+  "_aImages": [
+   {
+    "_sType": "screenshot",
+    "_sBaseUrl": "https://images.gamebanana.com/img/ss/mods",
+    "_sFile": "6995649268824.jpg",
+    "_sFile220": "220-90_6995649268824.jpg",
+    "_hFile220": 124,
+    "_wFile220": 220,
+    "_sFile530": "530-90_6995649268824.jpg",
+    "_hFile530": 298,
+    "_wFile530": 530,
+    "_sFile100": "100-90_6995649268824.jpg",
+    "_hFile100": 56,
+    "_wFile100": 100,
+    "_sFile800": "800-90_6995649268824.jpg",
+    "_hFile800": 450,
+    "_wFile800": 800
+   },
+   {
+    "_sType": "screenshot",
+    "_sBaseUrl": "https://images.gamebanana.com/img/ss/mods",
+    "_sFile": "6a10fb7166650.jpg",
+    "_sFile100": "100-90_6a10fb7166650.jpg",
+    "_hFile100": 56,
+    "_wFile100": 100
+   }
+  ]
+ },
+ "_nUpdatesCount": 84,
+ "_bHasUpdates": true,
+ "_tsDateUpdated": 1792185473,
+ "_nAllTodosCount": 0,
+ "_bHasTodos": false,
+ "_nPostCount": 243,
+ "_aTags": [],
+ "_bCreatedBySubmitter": true,
+ "_bIsPorted": true,
+ "_nThanksCount": 25,
+ "_sInitialVisibility": "show",
+ "_sDownloadUrl": "https://gamebanana.com/mods/download/650634",
+ "_nDownloadCount": 9302392,
+ "_aFiles": [
+  {
+   "_idRow": 1850914,
+   "_sFile": "qollock_405_16october.zip",
+   "_nFilesize": 10116149,
+   "_tsDateAdded": 1792185439,
+   "_nDownloadCount": 202826,
+   "_sDownloadUrl": "https://gamebanana.com/dl/1850914",
+   "_sMd5Checksum": "8901a2ab494ba23669b4f18533651830",
+   "_sAnalysisState": "done",
+   "_sAnalysisResult": "ok",
+   "_sAnalysisResultVerbose": "File passed preliminary analysis",
+   "_sAvState": "done",
+   "_sAvResult": "clean",
+   "_bIsArchived": false,
+   "_bHasContents": true,
+   "_aModManagerIntegrations": [
+    {
+     "_idToolRow": 20646,
+     "_bSupportsRemoteInstall": true,
+     "_aGameRowIds": [
+      20948
+     ],
+     "_sModManagerAlias": "DeadlockModManager",
+     "_sInstallerName": "Deadlock Mod Manager",
+     "_idSubmitterRow": 4765184,
+     "_sInstallerUrl": "https://gamebanana.com/tools/20646",
+     "_sIconUrl": "https://images.gamebanana.com/img/ico/tools/68bc15e737261.png",
+     "_sDownloadUrl": "deadlock-mod-manager:https://gamebanana.com/mmdl/1850914,Mod,650634"
+    }
+   ]
+  },
+  {
+   "_idRow": 1680726,
+   "_sFile": "optional_announcer_slot1_seven_josefumivo.zip",
+   "_nFilesize": 1323205,
+   "_tsDateAdded": 1776598953,
+   "_nDownloadCount": 913047,
+   "_sDownloadUrl": "https://gamebanana.com/dl/1680726",
+   "_sMd5Checksum": "4fae5844efb18da0587c977a8852c39d",
+   "_sAnalysisState": "done",
+   "_sAnalysisResult": "ok",
+   "_sAnalysisResultVerbose": "File passed preliminary analysis",
+   "_sAvState": "done",
+   "_sAvResult": "clean",
+   "_bIsArchived": false,
+   "_bHasContents": true,
+   "_aModManagerIntegrations": [
+    {
+     "_idToolRow": 20646,
+     "_bSupportsRemoteInstall": true,
+     "_aGameRowIds": [
+      20948
+     ],
+     "_sModManagerAlias": "DeadlockModManager",
+     "_sInstallerName": "Deadlock Mod Manager",
+     "_idSubmitterRow": 4765184,
+     "_sInstallerUrl": "https://gamebanana.com/tools/20646",
+     "_sIconUrl": "https://images.gamebanana.com/img/ico/tools/68bc15e737261.png",
+     "_sDownloadUrl": "deadlock-mod-manager:https://gamebanana.com/mmdl/1680726,Mod,650634"
+    }
+   ]
+  },
+  {
+   "_idRow": 1641691,
+   "_sFile": "optional_announcer_slot2__graves_bregraham.zip",
+   "_nFilesize": 1893205,
+   "_tsDateAdded": 1772855812,
+   "_nDownloadCount": 1021137,
+   "_sDownloadUrl": "https://gamebanana.com/dl/1641691",
+   "_sMd5Checksum": "5feb14a68c83aaf1a85312020bd1dba4",
+   "_sAnalysisState": "done",
+   "_sAnalysisResult": "ok",
+   "_sAnalysisResultVerbose": "File passed preliminary analysis",
+   "_sAvState": "done",
+   "_sAvResult": "clean",
+   "_bIsArchived": false,
+   "_bHasContents": true,
+   "_aModManagerIntegrations": [
+    {
+     "_idToolRow": 20646,
+     "_bSupportsRemoteInstall": true,
+     "_aGameRowIds": [
+      20948
+     ],
+     "_sModManagerAlias": "DeadlockModManager",
+     "_sInstallerName": "Deadlock Mod Manager",
+     "_idSubmitterRow": 4765184,
+     "_sInstallerUrl": "https://gamebanana.com/tools/20646",
+     "_sIconUrl": "https://images.gamebanana.com/img/ico/tools/68bc15e737261.png",
+     "_sDownloadUrl": "deadlock-mod-manager:https://gamebanana.com/mmdl/1641691,Mod,650634"
+    }
+   ]
+  },
+  {
+   "_idRow": 1641703,
+   "_sFile": "optional_announcer_slot3_drifter_viewtifulvalentine.zip",
+   "_nFilesize": 1645683,
+   "_tsDateAdded": 1772856856,
+   "_nDownloadCount": 1012750,
+   "_sDownloadUrl": "https://gamebanana.com/dl/1641703",
+   "_sMd5Checksum": "897893db9b9706cda462b58c8fdc94fa",
+   "_sAnalysisState": "done",
+   "_sAnalysisResult": "ok",
+   "_sAnalysisResultVerbose": "File passed preliminary analysis",
+   "_sAvState": "done",
+   "_sAvResult": "clean",
+   "_bIsArchived": false,
+   "_bHasContents": true,
+   "_aModManagerIntegrations": [
+    {
+     "_idToolRow": 20646,
+     "_bSupportsRemoteInstall": true,
+     "_aGameRowIds": [
+      20948
+     ],
+     "_sModManagerAlias": "DeadlockModManager",
+     "_sInstallerName": "Deadlock Mod Manager",
+     "_idSubmitterRow": 4765184,
+     "_sInstallerUrl": "https://gamebanana.com/tools/20646",
+     "_sIconUrl": "https://images.gamebanana.com/img/ico/tools/68bc15e737261.png",
+     "_sDownloadUrl": "deadlock-mod-manager:https://gamebanana.com/mmdl/1641703,Mod,650634"
+    }
+   ]
+  },
+  {
+   "_idRow": 1641769,
+   "_sFile": "optional_announcer_slot4_viscous_josefumivo.zip",
+   "_nFilesize": 1625546,
+   "_tsDateAdded": 1772864039,
+   "_nDownloadCount": 1009041,
+   "_sDownloadUrl": "https://gamebanana.com/dl/1641769",
+   "_sMd5Checksum": "4b6800d72b3ed09c2996e1bb41d2488c",
+   "_sAnalysisState": "done",
+   "_sAnalysisResult": "ok",
+   "_sAnalysisResultVerbose": "File passed preliminary analysis",
+   "_sAvState": "done",
+   "_sAvResult": "clean",
+   "_bIsArchived": false,
+   "_bHasContents": true,
+   "_aModManagerIntegrations": [
+    {
+     "_idToolRow": 20646,
+     "_bSupportsRemoteInstall": true,
+     "_aGameRowIds": [
+      20948
+     ],
+     "_sModManagerAlias": "DeadlockModManager",
+     "_sInstallerName": "Deadlock Mod Manager",
+     "_idSubmitterRow": 4765184,
+     "_sInstallerUrl": "https://gamebanana.com/tools/20646",
+     "_sIconUrl": "https://images.gamebanana.com/img/ico/tools/68bc15e737261.png",
+     "_sDownloadUrl": "deadlock-mod-manager:https://gamebanana.com/mmdl/1641769,Mod,650634"
+    }
+   ]
+  },
+  {
+   "_idRow": 1680727,
+   "_sFile": "optional_announcer_slot5_rem_zmpixie.zip",
+   "_nFilesize": 1760605,
+   "_tsDateAdded": 1776598954,
+   "_nDownloadCount": 922026,
+   "_sDownloadUrl": "https://gamebanana.com/dl/1680727",
+   "_sMd5Checksum": "6f034fa3f039036284ac41c573b8e960",
+   "_sAnalysisState": "done",
+   "_sAnalysisResult": "ok",
+   "_sAnalysisResultVerbose": "File passed preliminary analysis",
+   "_sAvState": "done",
+   "_sAvResult": "clean",
+   "_bIsArchived": false,
+   "_bHasContents": true,
+   "_aModManagerIntegrations": [
+    {
+     "_idToolRow": 20646,
+     "_bSupportsRemoteInstall": true,
+     "_aGameRowIds": [
+      20948
+     ],
+     "_sModManagerAlias": "DeadlockModManager",
+     "_sInstallerName": "Deadlock Mod Manager",
+     "_idSubmitterRow": 4765184,
+     "_sInstallerUrl": "https://gamebanana.com/tools/20646",
+     "_sIconUrl": "https://images.gamebanana.com/img/ico/tools/68bc15e737261.png",
+     "_sDownloadUrl": "deadlock-mod-manager:https://gamebanana.com/mmdl/1680727,Mod,650634"
+    }
+   ]
+  }
+ ],
+ "_nSubscriberCount": 299,
+ "_aContributingStudios": [],
+ "_sLicense": "<a target=\"_blank\" rel=\"license\" href=\"https://www.apache.org/licenses/LICENSE-2.0\"><img src=\"https://img.shields.io/badge/License-Apache_2.0-blue.png?logo=apache&logoColor=white\" alt=\"Apache 2.0 License\"></a><br>This work is licensed under the <a target=\"_blank\" rel=\"license\" href=\"https://www.apache.org/licenses/LICENSE-2.0\">Apache License 2.0</a>.<br><br>",
+ "_aLicenseChecklist": {
+  "yes": [
+   "Download and install this Mod"
+  ],
+  "ask": [
+   "Redistribute this Mod on other sites",
+   "Modify this Mod and distribute the modified Mod on GameBanana",
+   "Modify this Mod and distribute the modified Mod on another site",
+   "Use parts of this Mod in another Mod and distribute the Mod on GameBanana",
+   "Use parts of this Mod in another Mod and distribute the Mod on another site",
+   "Use this Mod or components of this Mod in adult/NSFW content"
+  ],
+  "no": [
+   "Use this Mod or components of this Mod commercially"
+  ]
+ },
+ "_sDescription": "Customizable QOL / UI / HUD Mod For Deadlock",
+ "_bGenerateTableOfContents": false,
+ "_sText": "<b><u>This project was created using AI Assistance</u></b><br><br><b>Instructions:<br></b><ul><li>Uninstall all other HUD and UI mods</li><li>Always have QOL as #1 in mod order</li><li>Issues are mostly caused by incorrect installation</li><li>Use settings menu to import/export configurations</li><li>If you need help or need to report something use the&nbsp;<a href=\"https://discord.com/invite/npCvuMcTY7\" target=\"_blank\">Discord</a><br></li><li>If saving doesn't work try QOL only first, another o",
+ "_bIsObsolete": false,
+ "_nLikeCount": 307,
+ "_nViewCount": 236549,
+ "_sVersion": "4.0.5",
+ "_bAcceptsDonations": true,
+ "_bShowRipePromo": true,
+ "_aSubmitter": {
+  "_idRow": 5146349,
+  "_sName": "civo",
+  "_sUserTitle": "Bananite",
+  "_sHonoraryTitle": "",
+  "_tsJoinDate": 1769537219,
+  "_sAvatarUrl": "https://images.gamebanana.com/img/av/6987b97b0ec01.png",
+  "_sSigUrl": "",
+  "_sProfileUrl": "https://gamebanana.com/members/5146349",
+  "_sPointsUrl": "https://gamebanana.com/members/logs/pointslog/5146349",
+  "_sMedalsUrl": "https://gamebanana.com/members/stats/medals/5146349",
+  "_bIsOnline": false,
+  "_sLocation": "<a href=\"https://gamebanana.com\">Home</a> > <a href=\"https://gamebanana.com/games/20948\"><img src=\"https://images.gamebanana.com/img/ico/games/69ca8632eca6d.png\"/><span>Deadlock</span></a> > <a href=\"https://gamebanana.com/mods/games/20948\">Mods</a> > <a href=\"https://gamebanana.com/mods/cats/46154\">Quality of Life/Fixes</a> > <a href=\"https://gamebanana.com/mods/650634\">QOL Lock</a>",
+  "_sOnlineTitle": "",
+  "_sOfflineTitle": "",
+  "_nPoints": 3793,
+  "_nPointsRank": 13860,
+  "_aNormalMedals": [
+   [
+    "thanks_recvd_1.png",
+    "Received thanks 5 times",
+    "normal",
+    4319953
+   ],
+   [
+    "features_1.png",
+    "Submission featured",
+    "normal",
+    4330389
+   ],
+   [
+    "mods1.png",
+    "Submitted 5 Mods",
+    "normal",
+    4349840
+   ],
+   [
+    "subscribers_1.png",
+    "Reached 10 subscribers",
+    "normal",
+    4354572
+   ],
+   [
+    "m_pr_1.png",
+    "Reached 1,000 Points",
+    "normal",
+    4361326
+   ],
+   [
+    "m_age_1.png",
+    "One month a member",
+    "normal",
+    4458325
+   ],
+   [
+    "tools1.png",
+    "Submitted 1 Tool",
+    "normal",
+    4478492
+   ],
+   [
+    "thanks_sent_1.png",
+    "Thanked 5 submitters",
+    "normal",
+    4790819
+   ],
+   [
+    "m_pr_2.png",
+    "Reached 2,500 Points",
+    "normal",
+    4839426
+   ]
+  ],
+  "_aRareMedals": [],
+  "_aLegendaryMedals": [],
+  "_bHasRipe": false,
+  "_nBuddyCount": 10,
+  "_nSubscriberCount": 39,
+  "_aDonationMethods": [
+   {
+    "_sTitle": "Ko-fi Profile",
+    "_sValue": "https://ko-fi.com/civocivocivo",
+    "_sInputType": "text",
+    "_sInputPlaceholder": "Ko-fi Profile URL...",
+    "_sIconClasses": "MiscIcon KofiIcon",
+    "_aValidator": {
+     "_regexValidPattern": "^https?\\:\\/\\/(www\\.)?ko\\-fi\\.com\\/.+$",
+     "_sWarningMessage": "URL looks incorrect - it should look like: https://ko-fi.com/USERNAME"
+    },
+    "_sValueTemplate": "<a target=\"_blank\" href=\"%VALUE%\">Ko-fi Profile</a>",
+    "_bIsUrl": true,
+    "_sFormattedValue": "<a target=\"_blank\" href=\"https://ko-fi.com/civocivocivo\">Ko-fi Profile</a>"
+   }
+  ],
+  "_bAccessorIsBuddy": false,
+  "_bBuddyRequestExistsWithAccessor": false,
+  "_bAccessorIsSubscribed": false,
+  "_sUpicUrl": "https://images.gamebanana.com/img/upic/698cd2d3158b4.png",
+  "_aDefaultLicenseChecklist": [
+   "yes",
+   "ask",
+   "ask",
+   "ask",
+   "ask",
+   "ask",
+   "no",
+   "ask"
+  ],
+  "_sDefaultLicense": ""
+ },
+ "_bFollowLinks": true,
+ "_aGame": {
+  "_idRow": 20948,
+  "_sName": "Deadlock",
+  "_sAbbreviation": "DL",
+  "_sProfileUrl": "https://gamebanana.com/games/20948",
+  "_sIconUrl": "https://images.gamebanana.com/img/ico/games/6abe8b273abb4.png",
+  "_sBannerUrl": "https://images.gamebanana.com/img/ico/games/6abe8b273abb4.png",
+  "_nSubscriberCount": 17457,
+  "_bHasSubmissionQueue": false,
+  "_bAccessorIsSubscribed": false
+ },
+ "_aCategory": {
+  "_idRow": 46154,
+  "_sName": "Quality of Life/Fixes",
+  "_sModelName": "ModCategory",
+  "_sProfileUrl": "https://gamebanana.com/mods/cats/46154",
+  "_sIconUrl": "",
+  "_bIsObsolete": false
+ },
+ "_aAlternateFileSources": [
+  {
+   "url": "https://github.com/civo7/QOLLOCK"
+  }
+ ]
+}

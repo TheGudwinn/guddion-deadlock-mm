@@ -1,0 +1,307 @@
+{
+  "app": {
+    "name": "Guddion",
+    "sub": "Mod manager"
+  },
+  "nav": {
+    "catalog": "Catalog",
+    "library": "Library",
+    "profiles": "Profiles",
+    "settings": "Settings",
+    "downloads": "Downloads"
+  },
+  "game": {
+    "found": "Game found",
+    "notFound": "Game not found",
+    "notFoundHint": "Deadlock was not found in your Steam libraries. Set the game folder in settings.",
+    "build": "Build {{id}}"
+  },
+  "catalog": {
+    "title": "Catalog",
+    "search": "Search by name",
+    "allCategories": "All categories",
+    "sort": {
+      "most_liked": "Most liked",
+      "newest": "Newest",
+      "latest_modified": "Recently updated",
+      "most_viewed": "Most viewed"
+    },
+    "searchNote": "Category and sort do not apply to name search; that is how the GameBanana API works.",
+    "found": "Found: {{count}}",
+    "offline": "No connection. Showing data from {{date}}.",
+    "installed": "Installed",
+    "prev": "Back",
+    "next": "Next",
+    "page": "Page {{n}}",
+    "empty": "Nothing found. Change the query or clear the category.",
+    "retry": "Retry"
+  },
+  "drawer": {
+    "close": "Close",
+    "files": "Files",
+    "install": "Install",
+    "installed": "Installed",
+    "openPage": "Open on GameBanana",
+    "unsupported": "{{ext}} is not supported yet. Use .zip, .7z, .rar or .vpk.",
+    "avClean": "GameBanana: no viruses found",
+    "av": "GameBanana: scan failed or not finished",
+    "downloads": "{{count}} downloads",
+    "noFiles": "This mod has no downloadable files.",
+    "queued": "Queued"
+  },
+  "library": {
+    "title": "Library",
+    "subtitle": "Mods installed through the manager. The slot number sets the load order.",
+    "slot": "Slot",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "toggle": "Enable or disable mod",
+    "remove": "Remove",
+    "removeConfirm": "Remove this mod?",
+    "removeYes": "Yes, remove",
+    "cancel": "Cancel",
+    "undo": "Undo: {{what}}",
+    "undone": "Action undone.",
+    "empty": "Nothing installed yet. Find a mod in the catalog and press Install.",
+    "toCatalog": "Open catalog",
+    "foreign": "Other addons in the game folder",
+    "foreignNote": "Installed by other managers or by hand. This manager never changes or deletes them.",
+    "entries": "{{count}} files inside",
+    "unreadable": "could not be read",
+    "files": "files: {{count}}",
+    "orderNote": "Higher in the list means a lower slot number. When two mods change the same file the game decides; we assume the lower number wins, but this has not been verified in the game yet. Drag a mod by its plate or use the arrows.",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "reordered": "Mod order changed. You can undo it.",
+    "checkUpdates": "Check for updates",
+    "checking": "Checking…",
+    "updatesFound_one": "{{count}} update found.",
+    "updatesFound_other": "{{count}} updates found.",
+    "upToDate": "No updates. Mods checked: {{count}}.",
+    "checkFailed": "Could not check {{count}} mod(s).",
+    "checkOffline": "No connection, data may be out of date.",
+    "updateAvailable": "New version available{{version}}",
+    "update": "Update",
+    "updated": "“{{name}}” updated. Slot and state are kept; you can undo this.",
+    "patchTitle": "The game was updated after these mods were installed",
+    "patchText": "Mods installed on an older build: {{count}}. Current game build is {{build}}. A patch can break mods, so check for updates. If the author has not released one, the mod has to wait."
+  },
+  "action": {
+    "install": "install “{{name}}”",
+    "uninstall": "remove “{{name}}”",
+    "toggle": "toggle “{{name}}”",
+    "generic": "last action",
+    "profile": "switch profile “{{name}}”",
+    "reorder": "mod reorder",
+    "update": "update of “{{name}}”"
+  },
+  "activity": {
+    "downloading": "Downloading “{{name}}”",
+    "installing": "Installing “{{name}}”",
+    "done": "“{{name}}” installed in slot {{slot}}",
+    "overlaps_one": "Files overlap with one installed addon. If they differ, the addon with higher priority wins.",
+    "overlaps_other": "Files overlap with {{count}} addons. If they differ, the addon with higher priority wins.",
+    "dismiss": "Dismiss"
+  },
+  "errors": {
+    "game_not_found": "Deadlock not found. Make sure the game is installed through Steam.",
+    "no_files": "The mod has no files to install.",
+    "unsupported_format": "File “{{name}}” has an unsupported format. You can install .zip, .7z, .rar and .vpk.",
+    "already_installed": "This mod is already installed.",
+    "duplicate": "The same set of files is already in the addons folder: {{name}}. No need to install it again.",
+    "no_free_slots": "No free slots left: 99 mods maximum.",
+    "network": "Could not reach GameBanana. Check your connection, enable a proxy or switch the mirror in settings.",
+    "generic": "Something went wrong: {{message}}",
+    "encrypted": "The archive is password-protected. The manager cannot open those.",
+    "forbidden": "The archive contains executables or scripts. Mods may only contain assets, so installation was stopped.",
+    "unsafe": "The archive contains unsafe paths. Installation was stopped and game files were not changed.",
+    "badArchive": "The file does not look like a mod archive or is damaged. Try downloading it again.",
+    "name_taken": "A profile with this name already exists. Choose another.",
+    "empty_name": "Enter a profile name.",
+    "invalid_name": "The name is too long or contains control characters.",
+    "profile_not_found": "Profile not found.",
+    "file_too_large": "The file is too large to be a profile.",
+    "not_a_profile": "This file does not look like a mod manager profile.",
+    "unsupported_version": "This profile was made by a newer version of the manager. Update the app.",
+    "bad_profile": "The profile file is damaged or contains invalid data.",
+    "mirrors_empty": "At least one mirror address is required.",
+    "mirrors_many": "Too many mirrors: 8 at most.",
+    "mirror_bad": "The mirror address “{{value}}” is not accepted. Use https://example.org without credentials or parameters (http is allowed for localhost only).",
+    "proxy_incomplete": "A custom proxy needs a host and a port from 1 to 65535.",
+    "proxy_host": "The proxy host must be a bare host name or IP, without http:// or a path.",
+    "proxy_bad": "Could not apply the proxy settings. Check the host and port.",
+    "path_missing": "Folder not found: {{path}}",
+    "not_deadlock": "This is not a Deadlock folder: game/citadel/gameinfo.gi is missing. Choose the game folder: {{path}}",
+    "order_mismatch": "The mod list does not match what is installed. Reload and try again.",
+    "updates_not_configured": "No update source is set. Add an address in settings.",
+    "update_install_failed": "Could not install the update: {{message}}. Restart the app.",
+    "update_signature": "The update signature failed verification, installation stopped. Try another mirror.",
+    "no_update": "There is no update for this mod.",
+    "update_no_source": "The manager does not remember which file this mod was installed from, so versions cannot be compared. Remove the mod and install it again from the catalog; updates will work after that.",
+    "update_slot_conflict": "The new version needs more slots than the old one and the next slot is taken. The old version was restored. Remove or move a neighbouring mod and try again.",
+    "mod_not_found": "The mod was not found in the library.",
+    "already_queued": "This mod is already in the download queue."
+  },
+  "profiles": {
+    "title": "Profiles",
+    "subtitle": "A profile remembers which mods are enabled and in what order. Switching enables and disables installed mods in one action.",
+    "newName": "New profile name",
+    "create": "Create from current mods",
+    "import": "Import from file",
+    "empty": "No profiles yet. Set up your mods in the library and save the set, for example “Ranked” without skins.",
+    "active": "Active",
+    "apply": "Apply",
+    "update": "Update from current",
+    "export": "Export",
+    "rename": "Rename",
+    "save": "Save",
+    "cancel": "Cancel",
+    "remove": "Remove",
+    "removeYes": "Yes, remove",
+    "counts": "mods: {{total}} · enabled: {{on}}",
+    "missingCount": "not installed: {{count}}",
+    "show": "Contents",
+    "on": "on",
+    "off": "off",
+    "notInstalled": "not installed",
+    "empty_set": "This profile has no mods.",
+    "applied": "Profile “{{name}}” applied: {{on}} enabled, {{off}} disabled.",
+    "appliedMissing": "Not installed: {{count}}. Find them in the catalog to complete the profile.",
+    "created": "Profile “{{name}}” saved.",
+    "updated": "Profile “{{name}}” updated.",
+    "imported": "Profile “{{name}}” imported. Its mods are not installed automatically.",
+    "exported": "Profile saved to file.",
+    "exportTitle": "Save profile"
+  },
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Network, mirrors and game folder. Changes apply right after saving, no restart needed.",
+    "save": "Save",
+    "saved": "Saved",
+    "game": {
+      "title": "Game folder",
+      "current": "Currently used: {{path}}",
+      "none": "Game not found. Choose the folder manually.",
+      "placeholder": "Detect automatically through Steam",
+      "pick": "Browse…",
+      "auto": "Detect automatically",
+      "pickTitle": "Deadlock folder",
+      "hint": "Use the game root, for example …\\steamapps\\common\\Deadlock. When a path is set, auto-detection is not used."
+    },
+    "proxy": {
+      "title": "Proxy",
+      "mode": {
+        "system": "System",
+        "none": "No proxy",
+        "custom": "Custom proxy"
+      },
+      "modeHint": {
+        "system": "Taken from Windows settings.",
+        "none": "Direct connection, the system proxy is ignored.",
+        "custom": "HTTP, HTTPS or SOCKS5."
+      },
+      "kind": "Type",
+      "host": "Host",
+      "port": "Port",
+      "user": "Username (optional)",
+      "password": "Password (optional)",
+      "passwordKept": "Saved, leave empty to keep it",
+      "forget": "Remove the saved password",
+      "plain": "The password is stored unencrypted in the settings file on this computer. Do not use a password you use elsewhere."
+    },
+    "mirrors": {
+      "title": "GameBanana mirrors",
+      "hint": "One address per line. The first is primary; the others are tried in order when it is unreachable. https only (http is allowed for localhost)."
+    },
+    "diag": {
+      "title": "Network diagnostics",
+      "hint": "Checks step by step: name resolution, connection, secure channel and the server reply. Shows where the connection breaks.",
+      "run": "Check connection",
+      "running": "Checking…",
+      "saveFirst": "Save your changes first.",
+      "viaProxy": "via proxy",
+      "ms": "ms",
+      "step": {
+        "url": "Address",
+        "dns": "DNS",
+        "tcp": "Connection",
+        "http": "HTTPS request"
+      },
+      "verdict": {
+        "ok": {
+          "title": "Reachable"
+        },
+        "dns_failed": {
+          "title": "Name does not resolve",
+          "advice": "The site name could not be turned into an IP. This can happen when the provider blocks it at DNS. Try a proxy or change DNS in the Windows network settings."
+        },
+        "tcp_failed": {
+          "title": "No connection",
+          "advice": "The server does not accept the connection. This may be an IP block or a network fault. Try a proxy or another mirror."
+        },
+        "tls_failed": {
+          "title": "Dropped while opening the secure channel",
+          "advice": "The connection opens but the secure channel fails. This can look like a block by site name; antivirus software and certificate substitution also cause it. Try a proxy or a mirror."
+        },
+        "proxy_failed": {
+          "title": "Proxy does not answer",
+          "advice": "The request through the proxy failed. Check the type, host, port and credentials, and that the proxy program is running."
+        },
+        "http_failed": {
+          "title": "Server returns an error",
+          "advice": "The link works, but the server returned an error or did not answer in time. Try later or another mirror."
+        },
+        "bad_url": {
+          "title": "Invalid address",
+          "advice": "The mirror address is malformed. Fix it above."
+        }
+      }
+    },
+    "language": {
+      "title": "Language",
+      "ru": "Русский",
+      "en": "English"
+    },
+    "updates": {
+      "title": "App updates",
+      "current": "Installed version {{version}}",
+      "auto": "Check for updates at startup",
+      "endpoints": "Update manifest addresses",
+      "none": "No update source is set in this build",
+      "hint": "One address per line: GitHub Releases first, then mirrors. Only the version list file is requested and nothing about you is sent. Packages are verified with the signing key built into the app, so a mirror cannot deliver a foreign build.",
+      "check": "Check for updates",
+      "latest": "You have the latest version",
+      "found": "Version {{version}} found"
+    }
+  },
+  "update": {
+    "available": "Version {{version}} is available",
+    "hint": "Currently {{current}}. The package signature is verified before installing.",
+    "installing": "Downloading and verifying the signature. The app restarts by itself.",
+    "install": "Update",
+    "later": "Later"
+  },
+  "downloads": {
+    "title": "Downloads",
+    "subtitle": "Mods download one at a time, in the order they were added. Pause and resume whenever you like: the downloaded part is kept, even across restarts.",
+    "pause": "Pause",
+    "resume": "Resume",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "remove": "Dismiss",
+    "pauseAll": "Pause all",
+    "resumeAll": "Resume all",
+    "clear": "Clear finished",
+    "empty": "No downloads. Pick a mod in the catalog and press Install: it joins the queue and installs itself after downloading.",
+    "added": "“{{name}}” added to the download queue.",
+    "state": {
+      "queued": "Queued",
+      "downloading": "Downloading",
+      "paused": "Paused",
+      "installing": "Installing",
+      "done": "Installed",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    }
+  }
+}

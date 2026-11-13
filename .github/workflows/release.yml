@@ -17,7 +17,7 @@ jobs:
           - os: windows-latest
             # NSIS carries the offline WebView2 runtime; MSI is for managed deployments.
             args: --bundles nsis,msi
-          - os: ubuntu-22.04
+          - os: ubuntu-24.04
             args: --bundles deb,appimage
     runs-on: ${{ matrix.os }}
     steps:

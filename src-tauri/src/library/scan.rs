@@ -1,0 +1,98 @@
+//! Inspect what is already in `addons/`, including files installed by other managers.
+use crate::install::pak_order::{is_ours, DISABLED_SUFFIX};
+use crate::install::vpk::{read_vpk_index, VpkFile};
+use std::collections::{BTreeSet, HashMap};
+use std::path::{Path, PathBuf};
+
+#[derive(Debug, Clone)]
+pub struct ExistingAddon {
+    pub file_name: String,
+    pub path: PathBuf,
+    /// Installed by this app (as opposed to another manager or by hand).
+    pub ours: bool,
+    pub disabled: bool,
+    pub size: u64,
+    /// Parsed VPK directory, or the reason it could not be read.
+    pub entries: Result<Vec<VpkFile>, String>,
+}
+
+/// List every addon VPK directory file (`*_dir.vpk`, plus our own `*.disabled` ones).
+pub fn scan_addons(addons_dir: &Path) -> std::io::Result<Vec<ExistingAddon>> {
+    let mut out = Vec::new();
+    let rd = match std::fs::read_dir(addons_dir) {
+        Ok(r) => r,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(out),
+        Err(e) => return Err(e),
+    };
+    for ent in rd {
+        let ent = ent?;
+        if !ent.file_type()?.is_file() {
+            continue;
+        }
+        let file_name = ent.file_name().to_string_lossy().into_owned();
+        let disabled = file_name.ends_with(DISABLED_SUFFIX);
+        let base = file_name.strip_suffix(DISABLED_SUFFIX).unwrap_or(&file_name);
+        if !base.ends_with("_dir.vpk") {
+            continue; // .dmm.json, chunk files, etc.
+        }
+        let ours = is_ours(&file_name);
+        if disabled && !ours {
+            continue;
+        }
+        let path = ent.path();
+        out.push(ExistingAddon {
+            entries: read_vpk_index(&path).map(|i| i.files),
+            size: ent.metadata()?.len(),
+            file_name,
+            path,
+            ours,
+            disabled,
+        });
+    }
+    out.sort_by(|a, b| a.file_name.cmp(&b.file_name));
+    Ok(out)
+}
+
+fn fingerprint(files: &[VpkFile]) -> BTreeSet<(&str, u32)> {
+    files.iter().map(|f| (f.path.as_str(), f.crc)).collect()
+}
+
+/// An existing addon with exactly the same files and CRCs as `new` (same mod, possibly renamed).
+pub fn find_duplicate<'a>(new: &[VpkFile], existing: &'a [ExistingAddon]) -> Option<&'a ExistingAddon> {
+    if new.is_empty() {
+        return None;
+    }
+    let fp = fingerprint(new);
+    existing.iter().find(|a| a.entries.as_ref().is_ok_and(|e| fingerprint(e) == fp))
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+pub struct Overlap {
+    pub path: String,
+    pub with_addon: String,
+    /// Same CRC: the copies are identical, so the overlap is harmless.
+    pub identical: bool,
+    /// The other addon is currently disabled.
+    pub other_disabled: bool,
+}
+
+/// Files in `new` that an already installed addon also provides.
+pub fn overlaps(new: &[VpkFile], existing: &[ExistingAddon]) -> Vec<Overlap> {
+    let mine: HashMap<&str, u32> = new.iter().map(|f| (f.path.as_str(), f.crc)).collect();
+    let mut out = Vec::new();
+    for a in existing {
+        let Ok(files) = &a.entries else { continue };
+        for f in files {
+            if let Some(&crc) = mine.get(f.path.as_str()) {
+                out.push(Overlap {
+                    path: f.path.clone(),
+                    with_addon: a.file_name.clone(),
+                    identical: crc == f.crc,
+                    other_disabled: a.disabled,
+                });
+            }
+        }
+    }
+    out.sort_by(|a, b| (&a.with_addon, &a.path).cmp(&(&b.with_addon, &b.path)));
+    out
+}

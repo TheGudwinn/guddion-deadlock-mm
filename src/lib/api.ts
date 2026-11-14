@@ -61,6 +61,7 @@ export type ForeignAddon = { name: string; size: number; entries: number | null;
 export type LastAction = { kind: string; mod_name: string | null };
 export type ProgressEvent = { stage: "download" | "install"; downloaded: number; total: number | null };
 
+export type LibraryStats = { foreign: number; disk_bytes: number; conflicts: number };
 export type QueueState = "queued" | "downloading" | "paused" | "installing" | "done" | "failed" | "cancelled";
 export type QueueRow = {
   id: number;

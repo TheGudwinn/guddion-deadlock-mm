@@ -4,7 +4,7 @@ use crate::install::extract::Limits;
 use crate::install::installer::{install_mod as run_install, reorder_files, toggle_mod, uninstall_files, Ctx, ReorderItem};
 use crate::install::journal::Journal;
 use crate::install::pak_order::{first_free_slot, is_ours, mod_id_of, slot_of, DISABLED_SUFFIX};
-use crate::library::scan::{scan_addons, Overlap};
+use crate::library::scan::{real_conflicts, scan_addons, Overlap};
 use crate::library::store;
 use crate::sources::ModFile;
 use crate::steam::locate::GameInstall;
@@ -353,4 +353,31 @@ pub async fn reorder_mods(state: State<'_, AppState>, order: Vec<i64>) -> Result
     .map_err(err)?
     .map_err(err)?;
     resync_names(&state).await
+}
+
+#[derive(Serialize)]
+pub struct LibraryStats {
+    /// Files in the game's addons folder that this app did not install.
+    pub foreign: usize,
+    /// Size of the addons this app installed.
+    pub disk_bytes: u64,
+    /// Paths provided by several enabled addons with different content (one of them silently wins).
+    pub conflicts: usize,
+}
+
+#[tauri::command]
+pub async fn library_stats(state: State<'_, AppState>) -> Result<LibraryStats, String> {
+    let Some(g) = state.game().ok().flatten() else {
+        return Ok(LibraryStats { foreign: 0, disk_bytes: 0, conflicts: 0 });
+    };
+    tokio::task::spawn_blocking(move || {
+        let all = scan_addons(&g.addons_dir).map_err(err)?;
+        Ok(LibraryStats {
+            foreign: all.iter().filter(|a| !a.ours).count(),
+            disk_bytes: all.iter().filter(|a| a.ours).map(|a| a.size).sum(),
+            conflicts: real_conflicts(&all),
+        })
+    })
+    .await
+    .map_err(err)?
 }

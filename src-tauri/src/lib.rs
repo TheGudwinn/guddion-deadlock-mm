@@ -72,6 +72,7 @@ pub fn run() {
             commands::last_action,
             commands::undo_last,
             commands::reorder_mods,
+            commands::library_stats,
             commands::check_mod_updates,
             commands::update_mod,
             commands::list_profiles,

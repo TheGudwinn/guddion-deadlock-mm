@@ -8,7 +8,8 @@
     "library": "Библиотека",
     "profiles": "Профили",
     "settings": "Настройки",
-    "downloads": "Загрузки"
+    "downloads": "Загрузки",
+    "home": "Главная"
   },
   "game": {
     "found": "Игра найдена",
@@ -307,5 +308,54 @@
       "failed": "Ошибка",
       "cancelled": "Отменено"
     }
+  },
+  "window": {
+    "minimize": "Свернуть",
+    "maximize": "Развернуть",
+    "restore": "Восстановить размер",
+    "close": "Закрыть"
+  },
+  "home": {
+    "title": "Главная",
+    "subtitle": "Что популярно, что установлено и всё ли в порядке.",
+    "popularNow": "Популярное сейчас",
+    "open": "Открыть",
+    "toCatalog": "Весь каталог",
+    "noCatalog": "Каталог пока недоступен",
+    "noCatalogHint": "Проверьте соединение или настройте прокси в настройках.",
+    "offline": "Нет связи: показаны сохранённые данные.",
+    "popular": "Популярные",
+    "stats": "Ваша библиотека",
+    "mine": "Мои моды",
+    "ringEnabled": "Включено модов",
+    "ringUpToDate": "Актуальные моды",
+    "enabled": "Включено {{on}} из {{total}}",
+    "uptodate": "Обновлений: {{count}}",
+    "notChecked": "Не проверялись",
+    "disk": "Занимает места",
+    "conflicts": "Пересечения файлов",
+    "foreign": "Чужие аддоны",
+    "disable": "Выключить",
+    "enable": "Включить",
+    "current": "Актуально",
+    "allMods": "Все моды: {{count}}"
+  },
+  "status": {
+    "mods_one": "Модов: {{count}}",
+    "mods_few": "Модов: {{count}}",
+    "mods_many": "Модов: {{count}}",
+    "mods_other": "Модов: {{count}}",
+    "enabled_one": "Включено: {{count}}",
+    "enabled_few": "Включено: {{count}}",
+    "enabled_many": "Включено: {{count}}",
+    "enabled_other": "Включено: {{count}}",
+    "conflicts_one": "Пересечений: {{count}}",
+    "conflicts_few": "Пересечений: {{count}}",
+    "conflicts_many": "Пересечений: {{count}}",
+    "conflicts_other": "Пересечений: {{count}}",
+    "updates_one": "Обновлений: {{count}}",
+    "updates_few": "Обновлений: {{count}}",
+    "updates_many": "Обновлений: {{count}}",
+    "updates_other": "Обновлений: {{count}}"
   }
 }

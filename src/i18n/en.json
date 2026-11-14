@@ -8,7 +8,8 @@
     "library": "Library",
     "profiles": "Profiles",
     "settings": "Settings",
-    "downloads": "Downloads"
+    "downloads": "Downloads",
+    "home": "Home"
   },
   "game": {
     "found": "Game found",
@@ -303,5 +304,46 @@
       "failed": "Failed",
       "cancelled": "Cancelled"
     }
+  },
+  "window": {
+    "minimize": "Minimize",
+    "maximize": "Maximize",
+    "restore": "Restore",
+    "close": "Close"
+  },
+  "home": {
+    "title": "Home",
+    "subtitle": "What is popular, what is installed, and whether everything is fine.",
+    "popularNow": "Popular now",
+    "open": "Open",
+    "toCatalog": "Full catalog",
+    "noCatalog": "The catalog is not available yet",
+    "noCatalogHint": "Check your connection or set a proxy in settings.",
+    "offline": "No connection: showing saved data.",
+    "popular": "Popular",
+    "stats": "Your library",
+    "mine": "My mods",
+    "ringEnabled": "Mods enabled",
+    "ringUpToDate": "Mods up to date",
+    "enabled": "{{on}} of {{total}} enabled",
+    "uptodate": "Updates: {{count}}",
+    "notChecked": "Not checked",
+    "disk": "Disk space",
+    "conflicts": "File overlaps",
+    "foreign": "Other addons",
+    "disable": "Disable",
+    "enable": "Enable",
+    "current": "Up to date",
+    "allMods": "All mods: {{count}}"
+  },
+  "status": {
+    "mods_one": "Mods: {{count}}",
+    "mods_other": "Mods: {{count}}",
+    "enabled_one": "Enabled: {{count}}",
+    "enabled_other": "Enabled: {{count}}",
+    "conflicts_one": "Overlaps: {{count}}",
+    "conflicts_other": "Overlaps: {{count}}",
+    "updates_one": "Updates: {{count}}",
+    "updates_other": "Updates: {{count}}"
   }
 }

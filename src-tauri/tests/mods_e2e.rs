@@ -393,3 +393,25 @@ fn failed_update_restores_the_old_version() {
     assert!(update_files(&c, &bad, 7, &["ddmm7_pak03_dir.vpk".to_string()], 3).is_err());
     assert_eq!(std::fs::read(game.addons_dir.join("ddmm7_pak03_dir.vpk")).unwrap(), v1);
 }
+
+#[test]
+fn conflict_count_ignores_identical_copies_and_disabled_addons() {
+    use deadlock_mm_lib::library::scan::{real_conflicts, scan_addons};
+    let e = env();
+    let game = validate_game_dir(&e.root).unwrap();
+    let a = build_vpk(&[("models/shared.vmdl_c", b"from A"), ("only/a.txt", b"a")]);
+    let b = build_vpk(&[("models/shared.vmdl_c", b"from B, different"), ("only/b.txt", b"b")]);
+    let same = build_vpk(&[("models/shared.vmdl_c", b"from A")]);
+    std::fs::create_dir_all(&game.addons_dir).unwrap();
+    std::fs::write(game.addons_dir.join("ddmm1_pak01_dir.vpk"), &a).unwrap();
+    std::fs::write(game.addons_dir.join("ddmm2_pak02_dir.vpk"), &b).unwrap();
+    assert_eq!(real_conflicts(&scan_addons(&game.addons_dir).unwrap()), 1, "different content in the same path");
+
+    // Disabling one side resolves it.
+    std::fs::rename(game.addons_dir.join("ddmm2_pak02_dir.vpk"), game.addons_dir.join("ddmm2_pak02_dir.vpk.disabled")).unwrap();
+    assert_eq!(real_conflicts(&scan_addons(&game.addons_dir).unwrap()), 0);
+
+    // An identical copy is harmless.
+    std::fs::write(game.addons_dir.join("555_pak03_dir.vpk"), &same).unwrap();
+    assert_eq!(real_conflicts(&scan_addons(&game.addons_dir).unwrap()), 0);
+}

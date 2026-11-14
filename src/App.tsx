@@ -14,12 +14,17 @@ import {
   type Mod,
   type ProgressEvent,
   type QueueRow,
+  type LibraryStats,
   type UpdateInfo,
   type UpdateReport,
 } from "./lib/api";
 import { humanizeError } from "./lib/format";
 import Activity, { type ActivityState } from "./components/Activity";
 import UpdateBanner from "./components/UpdateBanner";
+import WindowControls from "./components/WindowControls";
+import Icon from "./components/Icons";
+import Home from "./features/home/Home";
+import logo from "./assets/logo.png";
 import Catalog from "./features/store/Catalog";
 import ModDrawer from "./features/store/ModDrawer";
 import Library from "./features/library/Library";
@@ -27,11 +32,14 @@ import Profiles from "./features/profiles/Profiles";
 import Settings from "./features/settings/Settings";
 import Downloads from "./features/downloads/Downloads";
 
-type View = "catalog" | "library" | "profiles" | "downloads" | "settings";
+type View = "home" | "catalog" | "library" | "profiles" | "downloads" | "settings";
 
 export default function App() {
   const { t } = useTranslation();
-  const [view, setView] = useState<View>("catalog");
+  const [view, setView] = useState<View>("home");
+  const [searchText, setSearchText] = useState("");
+  const [search, setSearch] = useState({ text: "", n: 0 });
+  const [stats, setStats] = useState<LibraryStats | null>(null);
   const [game, setGame] = useState<GameInstall | null | undefined>(undefined);
   const [installed, setInstalled] = useState<InstalledMod[] | null>(null);
   const [foreign, setForeign] = useState<ForeignAddon[]>([]);
@@ -41,6 +49,7 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [activity, setActivity] = useState<ActivityState | null>(null);
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  const [maximized, setMaximized] = useState(false);
   const [queue, setQueue] = useState<QueueRow[]>([]);
   const prevStates = useRef<Map<number, string>>(new Map());
   const [modReport, setModReport] = useState<UpdateReport | null>(null);
@@ -187,6 +196,10 @@ export default function App() {
   const activeDownloads = queue.filter((r) => ["queued", "downloading", "paused", "installing"].includes(r.state));
   const queuedModIds = useMemo(() => new Set(activeDownloads.map((r) => r.remote_id)), [activeDownloads]);
 
+  useEffect(() => {
+    if (installed) void call<LibraryStats>("library_stats").then(setStats, () => setStats(null));
+  }, [installed]);
+
   const installedIds = useMemo(() => new Set((installed ?? []).map((m) => m.remote_id).filter((x): x is string => !!x)), [installed]);
 
   async function run<T>(fn: () => Promise<T>): Promise<T | undefined> {
@@ -286,53 +299,74 @@ export default function App() {
     });
 
   return (
-    <div className="shell">
-      <header className="topbar">
-        <div className="brand">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M12 2.5 21 12l-9 9.5L3 12 12 2.5Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-            <path d="M12 8v8M8.5 12h7" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-          </svg>
-          {t("app.name")}
+    <div className={`shell ${maximized ? "maximized" : ""}`}>
+      <nav className="rail" aria-label={t("app.name")}>
+        <div className="rail-logo" data-tauri-drag-region title={t("app.name")}>
+          <img src={logo} alt="" width={30} height={30} />
         </div>
-        <nav className="nav">
-          <button className="nav-item" aria-current={view === "catalog" ? "page" : undefined} onClick={() => setView("catalog")}>
-            {t("nav.catalog")}
+        {(
+          [
+            ["home", "home", 0],
+            ["catalog", "catalog", 0],
+            ["profiles", "profiles", 0],
+            ["library", "library", modReport?.updates.length ?? 0],
+            ["downloads", "downloads", activeDownloads.length],
+          ] as const
+        ).map(([id, icon, badge]) => (
+          <button key={id} className="rail-item" aria-current={view === id ? "page" : undefined} aria-label={t(`nav.${id}`)} title={t(`nav.${id}`)} onClick={() => setView(id)}>
+            <Icon name={icon} />
+            {badge > 0 && <span className="rail-badge">{badge}</span>}
           </button>
-          <button className="nav-item" aria-current={view === "profiles" ? "page" : undefined} onClick={() => setView("profiles")}>
-            {t("nav.profiles")}
-          </button>
-          <button className="nav-item" aria-current={view === "library" ? "page" : undefined} onClick={() => setView("library")}>
-            {t("nav.library")}
-            {installed && installed.length > 0 && <span className="nav-count">{installed.length}</span>}
-            {modReport && modReport.updates.length > 0 && <span className="nav-count nav-count-up">↑{modReport.updates.length}</span>}
-          </button>
-          <button className="nav-item" aria-current={view === "downloads" ? "page" : undefined} onClick={() => setView("downloads")}>
-            {t("nav.downloads")}
-            {activeDownloads.length > 0 && <span className="nav-count">{activeDownloads.length}</span>}
-          </button>
-          <button className="nav-item" aria-current={view === "settings" ? "page" : undefined} onClick={() => setView("settings")}>
-            {t("nav.settings")}
-          </button>
-        </nav>
-        <div className="status">
-          {profiles?.some((x) => x.active) && (
-            <span className="chip">
-              <b>{profiles.find((x) => x.active)?.name}</b>
+        ))}
+        <div className="rail-spacer" data-tauri-drag-region />
+        <button className="rail-item" aria-current={view === "settings" ? "page" : undefined} aria-label={t("nav.settings")} title={t("nav.settings")} onClick={() => setView("settings")}>
+          <Icon name="settings" />
+        </button>
+      </nav>
+
+      <div className="stage">
+        <header className="topbar" data-tauri-drag-region>
+          <form
+            className="topsearch"
+            role="search"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setSearch((s) => ({ text: searchText.trim(), n: s.n + 1 }));
+              setView("catalog");
+            }}
+          >
+            <input className="field" type="search" value={searchText} placeholder={t("catalog.search")} aria-label={t("catalog.search")} onChange={(e) => setSearchText(e.target.value)} />
+          </form>
+          <div className="spacer" data-tauri-drag-region />
+          <div className="status" data-tauri-drag-region>
+            {profiles?.some((x) => x.active) && (
+              <span className="chip">
+                <b>{profiles.find((x) => x.active)?.name}</b>
+              </span>
+            )}
+            <span className="chip" title={game === null ? t("game.notFoundHint") : undefined}>
+              <span className={`dot ${game ? "" : "off"}`} />
+              {game === undefined ? "…" : game ? t("game.found") : t("game.notFound")}
             </span>
-          )}
-          <span className="chip" title={game === null ? t("game.notFoundHint") : undefined}>
-            <span className={`dot ${game ? "" : "off"}`} />
-            {game === undefined ? "…" : game ? t("game.found") : t("game.notFound")}
-            {game?.build_id && <span className="stat">{t("game.build", { id: game.build_id })}</span>}
-          </span>
-        </div>
-      </header>
+          </div>
+          {isTauri && <WindowControls onMaximizedChange={setMaximized} />}
+        </header>
 
       <main className="main">
         {update && <UpdateBanner info={update} progress={updatePct} onInstall={() => void installUpdate()} onDismiss={() => setUpdate(null)} />}
-        {view === "catalog" ? (
-          <Catalog installedIds={installedIds} onOpen={setOpen} />
+        {view === "home" ? (
+          <Home
+            installed={installed}
+            report={modReport}
+            stats={stats}
+            busy={busy}
+            onOpen={setOpen}
+            onToggle={toggle}
+            onUpdate={(id) => void updateMod(id)}
+            onGo={setView}
+          />
+        ) : view === "catalog" ? (
+          <Catalog installedIds={installedIds} onOpen={setOpen} search={search} />
         ) : view === "downloads" ? (
           <Downloads
             rows={queue}
@@ -385,6 +419,15 @@ export default function App() {
           />
         )}
       </main>
+
+        <footer className="statusbar">
+          <span>{t("status.mods", { count: installed?.length ?? 0 })}</span>
+          <span>{t("status.enabled", { count: installed?.filter((m) => m.enabled).length ?? 0 })}</span>
+          <span className={stats && stats.conflicts > 0 ? "status-warn" : ""}>{t("status.conflicts", { count: stats?.conflicts ?? 0 })}</span>
+          <span>{t("status.updates", { count: modReport?.updates.length ?? 0 })}</span>
+          {game?.build_id && <span>{t("game.build", { id: game.build_id })}</span>}
+        </footer>
+      </div>
 
       {open && <ModDrawer mod={open} installed={installedIds.has(open.id)} queued={queuedModIds.has(open.id)} busy={busy} onClose={() => setOpen(null)} onInstall={(m, f) => void install(m, f)} />}
       <Activity state={activity} onDismiss={() => setActivity(null)} />

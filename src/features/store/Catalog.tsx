@@ -6,6 +6,8 @@ import { compact, humanizeError } from "../../lib/format";
 type Props = {
   installedIds: Set<string>;
   onOpen: (m: Mod) => void;
+  /** Text typed in the top-bar search; `n` changes on every submit so the same text can be sent again. */
+  search?: { text: string; n: number };
 };
 
 const SORTS: Exclude<Sort, "default">[] = ["most_liked", "newest", "latest_modified", "most_viewed"];
@@ -18,9 +20,9 @@ function Heart() {
   );
 }
 
-export default function Catalog({ installedIds, onOpen }: Props) {
+export default function Catalog({ installedIds, onOpen, search }: Props) {
   const { t } = useTranslation();
-  const [text, setText] = useState("");
+  const [text, setText] = useState(search?.text ?? "");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<number | null>(null);
   const [sort, setSort] = useState<Sort>("most_liked");
@@ -34,6 +36,11 @@ export default function Catalog({ installedIds, onOpen }: Props) {
   useEffect(() => {
     call<Category[]>("list_categories", { parent: null }).then(setCats, () => {});
   }, []);
+
+  useEffect(() => {
+    if (search) setText(search.text);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search?.n]);
 
   // Debounce typing so every keystroke is not a request.
   useEffect(() => {

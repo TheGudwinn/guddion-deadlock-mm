@@ -96,3 +96,16 @@ pub fn overlaps(new: &[VpkFile], existing: &[ExistingAddon]) -> Vec<Overlap> {
     out.sort_by(|a, b| (&a.with_addon, &a.path).cmp(&(&b.with_addon, &b.path)));
     out
 }
+
+/// Files provided by two or more ENABLED addons whose contents differ (same path, different CRC).
+/// Identical copies are harmless and disabled addons do not count. Unreadable addons are skipped.
+pub fn real_conflicts(addons: &[ExistingAddon]) -> usize {
+    use crate::library::conflicts::{find_conflicts, ModFiles};
+    let mods: Vec<ModFiles> = addons
+        .iter()
+        .enumerate()
+        .filter(|(_, a)| !a.disabled)
+        .filter_map(|(i, a)| a.entries.as_ref().ok().map(|e| ModFiles { mod_id: i as i64, files: e.iter().map(|f| (f.path.clone(), f.crc)).collect() }))
+        .collect();
+    find_conflicts(&mods).iter().filter(|c| !c.identical).count()
+}

@@ -193,6 +193,8 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
     case "pause_all_downloads":
     case "resume_all_downloads":
       return r(1);
+    case "library_stats":
+      return r({ foreign: 3, disk_bytes: 12_434_153, conflicts: 1 });
     case "app_version":
       return r("0.1.0");
     case "check_update":

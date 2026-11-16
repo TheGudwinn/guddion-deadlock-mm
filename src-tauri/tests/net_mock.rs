@@ -169,3 +169,117 @@ fn custom_proxy_requires_host_and_port() {
     cfg.proxy.kind = deadlock_mm_lib::net::config::ProxyKind::Socks5;
     assert!(build_client(&cfg).is_ok());
 }
+
+/// Answers a Range request with 416 first (as a server does for a stale `.part`), then serves the
+/// whole file on the retry.
+struct StalePart {
+    data: Vec<u8>,
+    content_range: Option<String>,
+}
+impl Respond for StalePart {
+    fn respond(&self, req: &Request) -> ResponseTemplate {
+        if req.headers.get("range").is_some() {
+            let mut r = ResponseTemplate::new(416);
+            if let Some(cr) = &self.content_range {
+                r = r.insert_header("content-range", cr.as_str());
+            }
+            return r;
+        }
+        ResponseTemplate::new(200).set_body_bytes(self.data.clone())
+    }
+}
+
+#[tokio::test]
+async fn stale_part_after_416_is_discarded_and_refetched() {
+    let srv = MockServer::start().await;
+    let d = data();
+    Mock::given(method("GET")).and(path("/f.vpk")).respond_with(StalePart { data: d.clone(), content_range: None }).mount(&srv).await;
+
+    let cfg = fast_cfg();
+    let client = build_client(&cfg).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let dest = dir.path().join("f.vpk");
+    // Garbage that is NOT a prefix of the file, no hash available: must not be passed off as complete.
+    std::fs::write(dir.path().join("f.vpk.part"), b"stale bytes").unwrap();
+    let urls = vec![format!("{}/f.vpk", srv.uri())];
+
+    download(&client, &cfg, DownloadRequest { urls: &urls, dest: &dest, expected_sha256: None }, &AtomicBool::new(false), |_| {})
+        .await
+        .unwrap();
+    assert_eq!(std::fs::read(&dest).unwrap(), d);
+}
+
+#[tokio::test]
+async fn complete_part_after_416_is_accepted_only_when_the_length_matches() {
+    let srv = MockServer::start().await;
+    let d = data();
+    let cr = format!("bytes */{}", d.len());
+    Mock::given(method("GET")).and(path("/f.vpk")).respond_with(StalePart { data: d.clone(), content_range: Some(cr) }).mount(&srv).await;
+
+    let cfg = fast_cfg();
+    let client = build_client(&cfg).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let dest = dir.path().join("f.vpk");
+    std::fs::write(dir.path().join("f.vpk.part"), &d).unwrap(); // already the full file
+    let urls = vec![format!("{}/f.vpk", srv.uri())];
+
+    download(&client, &cfg, DownloadRequest { urls: &urls, dest: &dest, expected_sha256: None }, &AtomicBool::new(false), |_| {})
+        .await
+        .unwrap();
+    assert_eq!(std::fs::read(&dest).unwrap(), d);
+}
+
+#[tokio::test]
+async fn non_http_urls_are_never_requested() {
+    let cfg = fast_cfg();
+    let client = build_client(&cfg).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let dest = dir.path().join("f.vpk");
+    for bad in ["file:///C:/Windows/win.ini", "ftp://example.com/f.vpk", "not a url", "data:text/plain,hi"] {
+        let urls = vec![bad.to_string()];
+        let err = download(&client, &cfg, DownloadRequest { urls: &urls, dest: &dest, expected_sha256: None }, &AtomicBool::new(false), |_| {})
+            .await
+            .unwrap_err();
+        assert!(matches!(err, NetError::AllMirrorsFailed(_)), "{bad}: {err:?}");
+    }
+    assert!(!dest.exists());
+}
+
+#[tokio::test]
+async fn invalid_mirror_is_skipped_for_a_valid_one() {
+    let srv = MockServer::start().await;
+    let d = data();
+    Mock::given(method("GET")).and(path("/f.vpk")).respond_with(ResponseTemplate::new(200).set_body_bytes(d.clone())).mount(&srv).await;
+
+    let cfg = fast_cfg();
+    let client = build_client(&cfg).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let dest = dir.path().join("f.vpk");
+    let urls = vec!["file:///etc/passwd".to_string(), format!("{}/f.vpk", srv.uri())];
+    download(&client, &cfg, DownloadRequest { urls: &urls, dest: &dest, expected_sha256: None }, &AtomicBool::new(false), |_| {})
+        .await
+        .unwrap();
+    assert_eq!(std::fs::read(&dest).unwrap(), d);
+}
+
+#[tokio::test]
+async fn a_second_download_into_the_same_file_is_refused() {
+    let srv = MockServer::start().await;
+    Mock::given(method("GET")).and(path("/f.vpk")).respond_with(ResponseTemplate::new(200).set_body_bytes(data()).set_delay(std::time::Duration::from_millis(400))).mount(&srv).await;
+
+    let cfg = fast_cfg();
+    let client = build_client(&cfg).unwrap();
+    let dir = tempfile::tempdir().unwrap();
+    let dest = dir.path().join("f.vpk");
+    let urls = vec![format!("{}/f.vpk", srv.uri())];
+    let pause_a = AtomicBool::new(false);
+    let pause_b = AtomicBool::new(false);
+    let a = download(&client, &cfg, DownloadRequest { urls: &urls, dest: &dest, expected_sha256: None }, &pause_a, |_| {});
+    let b = async {
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        download(&client, &cfg, DownloadRequest { urls: &urls, dest: &dest, expected_sha256: None }, &pause_b, |_| {}).await
+    };
+    let (ra, rb) = tokio::join!(a, b);
+    assert!(ra.is_ok());
+    assert!(matches!(rb, Err(NetError::Io(e)) if e.kind() == std::io::ErrorKind::AlreadyExists));
+}

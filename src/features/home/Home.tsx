@@ -3,14 +3,21 @@ import { useTranslation } from "react-i18next";
 import { call, type InstalledMod, type LibraryStats, type Mod, type Page, type UpdateReport } from "../../lib/api";
 import { compact, formatBytes } from "../../lib/format";
 import Icon from "../../components/Icons";
+import StateMark from "../../components/StateMark";
+import { groupState, groupTitle, type ForeignGroup } from "../../lib/foreign";
+import { smallThumb, type CachedMod } from "../../lib/modcache";
 
 type Props = {
   installed: InstalledMod[] | null;
+  /** Mods installed by other managers (one entry per mod) and what the catalog knows about them. */
+  groups: ForeignGroup[];
+  known: Record<string, CachedMod | null>;
   report: UpdateReport | null;
   stats: LibraryStats | null;
   busy: boolean;
   onOpen: (m: Mod) => void;
   onToggle: (id: number, enabled: boolean) => void;
+  onToggleForeign: (g: ForeignGroup, enabled: boolean) => void;
   onUpdate: (id: number) => void;
   onGo: (view: "catalog" | "library") => void;
 };
@@ -30,7 +37,7 @@ function Ring({ value, label, caption }: { value: number | null; label: string; 
   );
 }
 
-export default function Home({ installed, report, stats, busy, onOpen, onToggle, onUpdate, onGo }: Props) {
+export default function Home({ installed, groups, known, report, stats, busy, onOpen, onToggle, onToggleForeign, onUpdate, onGo }: Props) {
   const { t } = useTranslation();
   const [popular, setPopular] = useState<Mod[] | null>(null);
   const [offline, setOffline] = useState(false);
@@ -53,10 +60,15 @@ export default function Home({ installed, report, stats, busy, onOpen, onToggle,
   const hero = popular?.[0];
   const rest = (popular ?? []).slice(1);
   const mods = installed ?? [];
-  const enabled = mods.filter((m) => m.enabled).length;
+  // Everything in the game folder counts, not only what this manager installed.
+  const total = mods.length + groups.length;
+  const enabled = mods.filter((m) => m.enabled).length + groups.filter((g) => g.enabled > 0).length;
+  const SHOWN = 6;
+  // Enabled mods first in this short list (the library keeps a fixed order).
+  const foreignShown = [...groups].sort((a, b) => Number(b.enabled > 0) - Number(a.enabled > 0)).slice(0, Math.max(0, SHOWN - mods.length));
   const updateOf = (id: number) => report?.updates.find((u) => u.mod_id === id);
   const upToDate = report && report.checked > 0 ? (report.checked - report.updates.length) / report.checked : null;
-  const disk = mods.reduce((s, m) => s + m.files.reduce((a, f) => a + f.size, 0), 0);
+  const disk = mods.reduce((s, m) => s + m.files.reduce((a, f) => a + f.size, 0), 0) + groups.reduce((s, g) => s + g.size, 0);
 
   return (
     <section className="view">
@@ -131,7 +143,7 @@ export default function Home({ installed, report, stats, busy, onOpen, onToggle,
         <aside className="side">
           <div className="panel">
             <h3 className="panel-title">{t("home.mine")}</h3>
-            {mods.length === 0 ? (
+            {total === 0 ? (
               <div className="empty-panel">
                 <p>{t("library.empty")}</p>
                 <button className="btn btn-primary" onClick={() => onGo("catalog")}>
@@ -140,7 +152,7 @@ export default function Home({ installed, report, stats, busy, onOpen, onToggle,
               </div>
             ) : (
               <ul className="mine-list">
-                {mods.slice(0, 6).map((m) => {
+                {mods.slice(0, SHOWN).map((m) => {
                   const up = updateOf(m.id);
                   return (
                     <li key={m.id} className={`mine-row ${m.enabled ? "" : "mine-off"}`}>
@@ -157,15 +169,29 @@ export default function Home({ installed, report, stats, busy, onOpen, onToggle,
                           </button>
                         )}
                       </div>
-                      <button className="switch" role="switch" aria-checked={m.enabled} aria-label={`${t("library.toggle")}: ${m.name}`} title={m.enabled ? t("home.disable") : t("home.enable")} disabled={busy} onClick={() => onToggle(m.id, !m.enabled)} />
+                      <StateMark state={m.enabled ? "on" : "off"} label={`${m.enabled ? t("home.disable") : t("home.enable")}: ${m.name}`} disabled={busy} onClick={() => onToggle(m.id, !m.enabled)} />
+                    </li>
+                  );
+                })}
+                {foreignShown.map((g) => {
+                  const mod = g.id ? known[g.id] : undefined;
+                  const state = groupState(g);
+                  return (
+                    <li key={g.key} className={`mine-row ${state === "off" ? "mine-off" : ""}`}>
+                      {mod?.thumbnail ? <img className="mine-thumb" src={smallThumb(mod.thumbnail)} alt="" loading="lazy" decoding="async" /> : <div className="mine-thumb mine-thumb-empty" />}
+                      <div className="mine-name">
+                        <b>{groupTitle(g, known, t)}</b>
+                        <small>{[mod?.author, formatBytes(g.size)].filter(Boolean).join(" · ")}</small>
+                      </div>
+                      <StateMark state={state} label={`${state === "on" ? t("home.disable") : t("home.enable")}: ${groupTitle(g, known, t)}`} disabled={busy} onClick={() => onToggleForeign(g, state !== "on")} />
                     </li>
                   );
                 })}
               </ul>
             )}
-            {mods.length > 6 && (
+            {total > SHOWN && (
               <button className="btn btn-quiet" onClick={() => onGo("library")}>
-                {t("home.allMods", { count: mods.length })}
+                {t("home.allMods", { count: total })}
               </button>
             )}
           </div>
@@ -173,13 +199,13 @@ export default function Home({ installed, report, stats, busy, onOpen, onToggle,
           <div className="panel">
             <h3 className="panel-title">{t("home.stats")}</h3>
             <div className="rings">
-              <Ring value={mods.length ? enabled / mods.length : null} label={t("home.enabled", { on: enabled, total: mods.length })} caption={t("home.ringEnabled")} />
+              <Ring value={total ? enabled / total : null} label={t("home.enabled", { on: enabled, total })} caption={t("home.ringEnabled")} />
               <Ring value={upToDate} label={report ? t("home.uptodate", { count: report.updates.length }) : t("home.notChecked")} caption={t("home.ringUpToDate")} />
             </div>
             <dl className="facts">
               <div>
                 <dt>{t("home.disk")}</dt>
-                <dd>{formatBytes(stats?.disk_bytes ?? disk)}</dd>
+                <dd>{formatBytes(disk)}</dd>
               </div>
               <div className={stats && stats.conflicts > 0 ? "fact-warn" : ""}>
                 <dt>{t("home.conflicts")}</dt>
@@ -187,7 +213,7 @@ export default function Home({ installed, report, stats, busy, onOpen, onToggle,
               </div>
               <div>
                 <dt>{t("home.foreign")}</dt>
-                <dd>{stats ? stats.foreign : "–"}</dd>
+                <dd>{groups.length}</dd>
               </div>
             </dl>
           </div>

@@ -1,5 +1,5 @@
 // Development-only sample data so the UI can be previewed in a regular browser.
-import type { InstalledMod, Mod, ModDetails, QueueRow, SettingsView } from "./api";
+import type { AddonContent, Content, InstalledMod, Mod, ModDetails, QueueRow, SettingsView } from "./api";
 
 const img = "https://images.gamebanana.com/img/ss/mods/";
 const mk = (id: number, name: string, author: string, category: string, likes: number, views: number, thumb: string): Mod => ({
@@ -58,6 +58,42 @@ let settings: SettingsView = {
   update_endpoints: ["https://github.com/example/deadlock-mm/releases/latest/download/latest.json"],
 };
 
+const hud: Content = {
+  total_files: 64,
+  total_bytes: 10116149,
+  kinds: [
+    { kind: "interface", count: 58, bytes: 612_000 },
+    { kind: "textures", count: 6, bytes: 9_504_149 },
+  ],
+  heroes: [],
+  sample: ["panorama/layout/hud/hud_ability_bar.vxml_c", "panorama/styles/hud/ability_bar.vcss_c", "panorama/images/hud/lock.vtex_c"],
+  folders: [["panorama", 58], ["materials", 6]],
+};
+const icons: Content = {
+  total_files: 31,
+  total_bytes: 2318004,
+  kinds: [{ kind: "textures", count: 31, bytes: 2_318_004 }],
+  heroes: [],
+  sample: ["materials/hud/ability_icons/abrams_1.vtex_c", "materials/hud/ability_icons/haze_1.vtex_c"],
+  folders: [["materials", 31]],
+};
+const skin = (name: string, code: string): Content => ({
+  total_files: 412,
+  total_bytes: 67_069_166,
+  kinds: [
+    { kind: "textures", count: 268, bytes: 51_000_000 },
+    { kind: "models", count: 96, bytes: 14_200_000 },
+    { kind: "effects", count: 48, bytes: 1_869_166 },
+  ],
+  heroes: [{ code, name, files: 380 }],
+  sample: [`models/heroes_wip/${code}/${code}.vmdl_c`, `models/heroes_wip/${code}/${code}_arms.vmdl_c`, `materials/models/heroes_wip/${code}/body_color.vtex_c`],
+  folders: [["materials", 268], ["models", 96], ["particles", 48]],
+});
+const CONTENTS: AddonContent[] = [
+  { name: "ddmm3_pak01_dir.vpk", content: hud },
+  { name: "ddmm7_pak02_dir.vpk", content: icons },
+];
+
 const QUEUE: QueueRow[] = [
   { id: 1, remote_id: "698127", name: "Cynthia as Silver HUD", file_name: "cynthia_silver_hud.zip", state: "downloading", downloaded: 14_300_000, total: 41_000_000, error: null, slot: null, overlaps: null },
   { id: 2, remote_id: "725413", name: "4:3 Stretched HUD Fix (Healthbar + Shop)", file_name: "hud43_fix.rar", state: "queued", downloaded: 0, total: 3_200_000, error: null, slot: null, overlaps: null },
@@ -101,10 +137,15 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
       return r(INSTALLED);
     case "list_foreign_addons":
       return r([
-        { name: "569650_pak06_dir.vpk", size: 67069166, entries: 412, error: null },
-        { name: "659083_pak67_dir.vpk", size: 78026643, entries: 530, error: null },
-        { name: "666724_pak12_dir.vpk", size: 58384245, entries: 288, error: null },
+        // One mod, several files, all switched off (id prefix): shown as a single entry.
+        { name: "569650_pak06_dir.vpk", size: 67069166, entries: 412, error: null, content: skin("Vindicta", "hornet"), remote_id: "569650", enabled: false },
+        { name: "569650_pak07_dir.vpk", size: 5_900_000, entries: 40, error: null, content: hud, remote_id: "569650", enabled: false },
+        { name: "pak01_dir.vpk", size: 78026643, entries: 530, error: null, content: { ...skin("Haze", "haze"), total_files: 530 }, remote_id: "659083", enabled: true },
+        { name: "pak05_dir.vpk", size: 27_900_000, entries: 90, error: null, content: hud, remote_id: null, enabled: true },
+        { name: "broken_pak99_dir.vpk", size: 1024, entries: null, error: "bad vpk header", content: null, remote_id: null, enabled: false },
       ]);
+    case "describe_installed":
+      return r(CONTENTS);
     case "list_profiles":
       return r([
         {

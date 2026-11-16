@@ -23,8 +23,9 @@ impl Default for Limits {
 
 /// Executable / script types: an archive containing any of these is rejected outright.
 const FORBIDDEN_EXT: &[&str] = &[
-    "exe", "dll", "bat", "cmd", "com", "ps1", "psm1", "msi", "scr", "lnk", "vbs", "vbe", "js", "jse", "jar", "sh", "py",
-    "reg", "hta", "cpl",
+    "exe", "dll", "bat", "cmd", "com", "ps1", "psm1", "ps1xml", "msi", "msp", "mst", "scr", "lnk", "url", "scf", "inf",
+    "vbs", "vbe", "js", "jse", "mjs", "cjs", "wsf", "wsh", "jar", "sh", "py", "pl", "rb", "php", "reg", "hta", "cpl",
+    "msc", "pif", "gadget", "appx", "msix", "application", "sys", "drv", "ocx",
 ];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -57,12 +58,43 @@ fn is_unsafe_name(name: &str) -> bool {
     n.starts_with('/') || n.contains(':') || n.split('/').any(|c| c == "..")
 }
 
-fn ext_of(name: &str) -> String {
-    name.rsplit(['/', '\\']).next().and_then(|f| f.rsplit_once('.')).map(|(_, e)| e.to_ascii_lowercase()).unwrap_or_default()
+/// Windows ignores trailing dots and spaces, so `evil.exe.` is `evil.exe` on disk.
+fn file_part(name: &str) -> &str {
+    name.rsplit(['/', '\\']).next().unwrap_or("").trim_end_matches(['.', ' '])
 }
 
+fn ext_of(name: &str) -> String {
+    file_part(name).rsplit_once('.').map(|(_, e)| e.to_ascii_lowercase()).unwrap_or_default()
+}
+
+/// True when ANY dot-separated part after the first is an executable type, so double extensions
+/// such as `x.exe.vpk` or `x.vbs.txt` are caught as well as `x.exe`.
+fn has_forbidden_ext(name: &str) -> bool {
+    file_part(name).split('.').skip(1).any(|part| FORBIDDEN_EXT.contains(&part.trim().to_ascii_lowercase().as_str()))
+}
+
+const RESERVED: &[&str] = &[
+    "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8", "COM9", "LPT1", "LPT2",
+    "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8", "LPT9",
+];
+
+/// A file name that is safe to create on Windows and Unix: no reserved device names, no characters
+/// Windows rejects, no trailing dots or spaces, bounded length.
 fn base_name(name: &str) -> String {
-    name.replace('\\', "/").rsplit('/').next().unwrap_or("mod.vpk").to_string()
+    let raw = file_part(name);
+    let mut n: String = raw.chars().map(|c| if c.is_control() || "<>:\"|?*".contains(c) { '_' } else { c }).collect();
+    if n.is_empty() {
+        n = "mod.vpk".into();
+    }
+    if n.chars().count() > 120 {
+        let ext = ext_of(&n);
+        n = format!("{}.{ext}", n.chars().take(100).collect::<String>());
+    }
+    let stem = n.split('.').next().unwrap_or("").to_ascii_uppercase();
+    if RESERVED.contains(&stem.as_str()) {
+        n.insert(0, '_');
+    }
+    n
 }
 
 fn unique_dest(dir: &Path, base: &str) -> PathBuf {
@@ -99,11 +131,10 @@ impl<'a> Scan<'a> {
         if is_dir {
             return Ok(false);
         }
-        let ext = ext_of(name);
-        if FORBIDDEN_EXT.contains(&ext.as_str()) {
+        if has_forbidden_ext(name) {
             return Err(InstallError::ForbiddenFile(name.to_string()));
         }
-        if ext != "vpk" {
+        if ext_of(name) != "vpk" {
             return Ok(false);
         }
         if size > self.limits.max_file_bytes {
@@ -117,10 +148,12 @@ impl<'a> Scan<'a> {
     }
 }
 
-/// Copy at most `max + 1` bytes and fail if the entry turned out larger than allowed.
+/// Copy at most `max + 1` bytes and fail if the entry turned out larger than allowed. `max` is the
+/// smaller of the per-file limit and what is left of the total budget, so the disk never holds
+/// more than the total limit even for a moment. Never overwrites an existing file.
 fn copy_capped(src: &mut dyn Read, dest: &Path, max: u64) -> Result<u64, InstallError> {
-    let mut f = std::fs::File::create(dest)?;
-    let written = std::io::copy(&mut src.take(max + 1), &mut f)?;
+    let mut f = std::fs::OpenOptions::new().write(true).create_new(true).open(dest)?;
+    let written = std::io::copy(&mut src.take(max.saturating_add(1)), &mut f)?;
     f.flush()?;
     if written > max {
         drop(f);
@@ -130,18 +163,33 @@ fn copy_capped(src: &mut dyn Read, dest: &Path, max: u64) -> Result<u64, Install
     Ok(written)
 }
 
+/// How many bytes the next file may take: the per-file cap, bounded by the remaining total budget.
+fn budget(limits: &Limits, used: u64) -> u64 {
+    limits.max_file_bytes.min(limits.max_total_bytes.saturating_sub(used))
+}
+
 /// Extract the `.vpk` files of a zip / 7z / rar archive into `out_dir` (flattened).
+///
+/// On any failure every file written so far is deleted again, so a rejected archive leaves nothing behind.
 pub fn extract_vpks(archive: &Path, out_dir: &Path, limits: &Limits) -> Result<Vec<PathBuf>, InstallError> {
-    let out = match detect_kind(archive)? {
-        ArchiveKind::Zip => extract_zip(archive, out_dir, limits)?,
-        ArchiveKind::SevenZ => extract_7z(archive, out_dir, limits)?,
-        ArchiveKind::Rar => extract_rar(archive, out_dir, limits)?,
-        ArchiveKind::Vpk => return Err(InstallError::BadArchive("a bare VPK is not an archive".into())),
-    };
-    if out.is_empty() {
-        return Err(InstallError::NoVpk);
+    let kind = detect_kind(archive)?;
+    let mut out: Vec<PathBuf> = Vec::new();
+    let result = match kind {
+        ArchiveKind::Zip => extract_zip(archive, out_dir, limits, &mut out),
+        ArchiveKind::SevenZ => extract_7z(archive, out_dir, limits, &mut out),
+        ArchiveKind::Rar => extract_rar(archive, out_dir, limits, &mut out),
+        ArchiveKind::Vpk => Err(InstallError::BadArchive("a bare VPK is not an archive".into())),
     }
-    Ok(out)
+    .and_then(|()| if out.is_empty() { Err(InstallError::NoVpk) } else { Ok(()) });
+    match result {
+        Ok(()) => Ok(out),
+        Err(e) => {
+            for p in &out {
+                let _ = std::fs::remove_file(p);
+            }
+            Err(e)
+        }
+    }
 }
 
 fn bad(e: impl std::fmt::Display) -> InstallError {
@@ -154,7 +202,7 @@ fn zip_name<R: Read + ?Sized>(e: &zip::read::ZipFile<'_, R>) -> Result<String, I
     e.name().map(|n| n.into_owned()).map_err(bad)
 }
 
-fn extract_zip(archive: &Path, out_dir: &Path, limits: &Limits) -> Result<Vec<PathBuf>, InstallError> {
+fn extract_zip(archive: &Path, out_dir: &Path, limits: &Limits, out: &mut Vec<PathBuf>) -> Result<(), InstallError> {
     let mut zip = zip::ZipArchive::new(std::fs::File::open(archive)?).map_err(bad)?;
     if zip.len() > limits.max_entries {
         return Err(InstallError::TooManyEntries(zip.len()));
@@ -173,7 +221,6 @@ fn extract_zip(archive: &Path, out_dir: &Path, limits: &Limits) -> Result<Vec<Pa
     }
 
     std::fs::create_dir_all(out_dir)?;
-    let mut out = Vec::new();
     let mut total = 0u64;
     for i in 0..zip.len() {
         let mut e = zip.by_index(i).map_err(bad)?;
@@ -182,19 +229,15 @@ fn extract_zip(archive: &Path, out_dir: &Path, limits: &Limits) -> Result<Vec<Pa
             continue;
         }
         let dest = unique_dest(out_dir, &base_name(&name));
-        total += copy_capped(&mut e, &dest, limits.max_file_bytes)?;
-        if total > limits.max_total_bytes {
-            let _ = std::fs::remove_file(&dest);
-            return Err(InstallError::TooLarge);
-        }
+        total += copy_capped(&mut e, &dest, budget(limits, total))?;
         out.push(dest);
     }
-    Ok(out)
+    Ok(())
 }
 
 // ---- 7z ----------------------------------------------------------------------------------------
 
-fn extract_7z(archive: &Path, out_dir: &Path, limits: &Limits) -> Result<Vec<PathBuf>, InstallError> {
+fn extract_7z(archive: &Path, out_dir: &Path, limits: &Limits, out: &mut Vec<PathBuf>) -> Result<(), InstallError> {
     use sevenz_rust2::{Archive, ArchiveReader, Password};
 
     let meta = Archive::open(archive).map_err(bad)?;
@@ -205,7 +248,6 @@ fn extract_7z(archive: &Path, out_dir: &Path, limits: &Limits) -> Result<Vec<Pat
 
     std::fs::create_dir_all(out_dir)?;
     let mut reader = ArchiveReader::open(archive, Password::empty()).map_err(bad)?;
-    let mut out = Vec::new();
     let mut total = 0u64;
     let mut failure: Option<InstallError> = None;
     reader
@@ -214,14 +256,10 @@ fn extract_7z(archive: &Path, out_dir: &Path, limits: &Limits) -> Result<Vec<Pat
                 return Ok(true); // skipped entries are still consumed correctly by the reader
             }
             let dest = unique_dest(out_dir, &base_name(entry.name()));
-            match copy_capped(data, &dest, limits.max_file_bytes) {
+            match copy_capped(data, &dest, budget(limits, total)) {
                 Ok(n) => {
                     total += n;
                     out.push(dest);
-                    if total > limits.max_total_bytes {
-                        failure = Some(InstallError::TooLarge);
-                        return Ok(false);
-                    }
                     Ok(true)
                 }
                 Err(e) => {
@@ -233,13 +271,13 @@ fn extract_7z(archive: &Path, out_dir: &Path, limits: &Limits) -> Result<Vec<Pat
         .map_err(bad)?;
     match failure {
         Some(e) => Err(e),
-        None => Ok(out),
+        None => Ok(()),
     }
 }
 
 // ---- rar ---------------------------------------------------------------------------------------
 
-fn extract_rar(archive: &Path, out_dir: &Path, limits: &Limits) -> Result<Vec<PathBuf>, InstallError> {
+fn extract_rar(archive: &Path, out_dir: &Path, limits: &Limits, out: &mut Vec<PathBuf>) -> Result<(), InstallError> {
     let mut scan = Scan::new(limits);
     let listing = unrar::Archive::new(archive).open_for_listing().map_err(bad)?;
     for entry in listing {
@@ -255,24 +293,78 @@ fn extract_rar(archive: &Path, out_dir: &Path, limits: &Limits) -> Result<Vec<Pa
     }
 
     std::fs::create_dir_all(out_dir)?;
-    let mut out = Vec::new();
     let mut total = 0u64;
     let mut cursor = unrar::Archive::new(archive).open_for_processing().map_err(bad)?;
     while let Some(header) = cursor.read_header().map_err(bad)? {
         let name = header.entry().filename.to_string_lossy().replace('\\', "/");
         if header.entry().is_file() && ext_of(&name) == "vpk" {
             let dest = unique_dest(out_dir, &base_name(&name));
+            // The unrar library writes the whole entry itself, so it cannot be capped while writing;
+            // track the path first so a failure (even mid-write) is cleaned up, then check the real size.
+            out.push(dest.clone());
             cursor = header.extract_to(&dest).map_err(bad)?;
             let size = std::fs::metadata(&dest)?.len();
             total += size;
             if size > limits.max_file_bytes || total > limits.max_total_bytes {
-                let _ = std::fs::remove_file(&dest);
                 return Err(InstallError::TooLarge);
             }
-            out.push(dest);
         } else {
             cursor = header.skip().map_err(bad)?;
         }
     }
-    Ok(out)
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn double_and_trailing_extensions_are_forbidden() {
+        for n in ["a.exe", "dir/a.EXE", "a.exe.vpk", "a.vbs.txt", "a.exe.", "a.exe ", "a.ps1.", "x.url"] {
+            assert!(has_forbidden_ext(n), "{n}");
+        }
+        for n in ["a.vpk", "pak01_dir.vpk", "readme.txt", "my.mod.v2.vpk", "image.png"] {
+            assert!(!has_forbidden_ext(n), "{n}");
+        }
+    }
+
+    #[test]
+    fn unsafe_names_are_rejected() {
+        for n in ["../a.vpk", "a/../b.vpk", "/etc/a.vpk", "C:/a.vpk", r"a\..\b.vpk", "a.vpk:stream"] {
+            assert!(is_unsafe_name(n), "{n}");
+        }
+        assert!(!is_unsafe_name("maps/a.vpk"));
+    }
+
+    #[test]
+    fn output_names_are_safe_on_windows() {
+        assert_eq!(base_name("dir/sub/mod.vpk"), "mod.vpk");
+        assert_eq!(base_name("CON.vpk"), "_CON.vpk");
+        assert_eq!(base_name("nul"), "_nul");
+        assert_eq!(base_name("a<b>.vpk"), "a_b_.vpk");
+        assert_eq!(base_name(""), "mod.vpk");
+        assert!(base_name(&format!("{}.vpk", "x".repeat(300))).chars().count() <= 110);
+    }
+
+    #[test]
+    fn budget_never_exceeds_the_total() {
+        let l = Limits { max_entries: 10, max_total_bytes: 100, max_file_bytes: 80 };
+        assert_eq!(budget(&l, 0), 80);
+        assert_eq!(budget(&l, 50), 50);
+        assert_eq!(budget(&l, 100), 0);
+        assert_eq!(budget(&l, 500), 0);
+    }
+
+    #[test]
+    fn copy_capped_refuses_oversize_and_existing_files() {
+        let dir = std::env::temp_dir().join(format!("ddmm-ex-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let dest = dir.join("a.vpk");
+        assert!(matches!(copy_capped(&mut &[0u8; 10][..], &dest, 5), Err(InstallError::TooLarge)));
+        assert!(!dest.exists(), "oversized file is removed");
+        assert_eq!(copy_capped(&mut &[0u8; 5][..], &dest, 5).unwrap(), 5);
+        assert!(copy_capped(&mut &[0u8; 1][..], &dest, 5).is_err(), "never overwrites");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 }

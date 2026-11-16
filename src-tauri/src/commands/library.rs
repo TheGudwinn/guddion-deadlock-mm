@@ -1,9 +1,13 @@
 //! Install / library commands.
 use super::{err, AppState};
 use crate::install::extract::Limits;
+use crate::install::foreign::toggle_foreign;
 use crate::install::installer::{install_mod as run_install, reorder_files, toggle_mod, uninstall_files, Ctx, ReorderItem};
 use crate::install::journal::Journal;
 use crate::install::pak_order::{first_free_slot, is_ours, mod_id_of, slot_of, DISABLED_SUFFIX};
+use crate::library::describe::{describe, Content};
+use crate::library::foreign_id;
+use crate::library::identity_store::IdentityStore;
 use crate::library::scan::{real_conflicts, scan_addons, Overlap};
 use crate::library::store;
 use crate::sources::ModFile;
@@ -68,6 +72,13 @@ pub struct ForeignAddon {
     pub size: u64,
     pub entries: Option<usize>,
     pub error: Option<String>,
+    /// What the addon contains, worked out from the paths inside it.
+    pub content: Option<Content>,
+    /// Catalog mod id read from the other manager's file name or manifest (look it up for the real name).
+    pub remote_id: Option<String>,
+    /// The game loads this file (`pak##_dir.vpk`). Other managers switch a mod off by renaming its
+    /// files (id prefix), so a file that is not loaded is a mod that is installed but turned off.
+    pub enabled: bool,
 }
 
 #[derive(Serialize)]
@@ -197,15 +208,65 @@ pub(super) async fn installed_mods(state: &AppState) -> Result<Vec<InstalledMod>
 #[tauri::command]
 pub async fn list_foreign_addons(state: State<'_, AppState>) -> Result<Vec<ForeignAddon>, String> {
     let Some(g) = state.game().ok().flatten() else { return Ok(vec![]) };
+    let journal_path = dirs(&state).journal;
+    let store_path = state.app_dir.join("foreign_ids.json");
     tokio::task::spawn_blocking(move || {
-        scan_addons(&g.addons_dir).map_err(err).map(|v| {
-            v.into_iter()
-                .filter(|a| !a.ours)
-                .map(|a| ForeignAddon {
+        // The other manager's manifest first; our own journal fills in what it has lost.
+        let mut owners = foreign_id::journal_owners(&Journal::open(&journal_path).entries().unwrap_or_default());
+        owners.extend(foreign_id::manifest_owners(&g.addons_dir));
+        let foreign: Vec<_> = scan_addons(&g.addons_dir).map_err(err)?.into_iter().filter(|a| !a.ours).collect();
+        // What was recognised before stays recognised when the other manager renames files or loses its manifest.
+        let mut store = IdentityStore::load(&store_path);
+        let key_of = |a: &crate::library::scan::ExistingAddon| IdentityStore::key(a.size, a.entries.as_ref().ok().map(|e| e.len()));
+        let present = foreign.iter().map(key_of).collect();
+        let out: Vec<ForeignAddon> = foreign
+            .into_iter()
+            .map(|a| {
+                let key = key_of(&a);
+                let id = match foreign_id::identify(&a.file_name, &owners) {
+                    Some(id) => {
+                        store.remember(&key, &id);
+                        Some(id)
+                    }
+                    None => store.lookup(&key).map(str::to_string),
+                };
+                ForeignAddon {
+                    remote_id: id,
+                    enabled: foreign_id::is_loaded_name(&a.file_name),
                     name: a.file_name,
                     size: a.size,
                     entries: a.entries.as_ref().ok().map(|e| e.len()),
+                    content: a.entries.as_ref().ok().map(|e| describe(e)),
                     error: a.entries.err(),
+                }
+            })
+            .collect();
+        store.retain_present(&present);
+        store.save(&store_path);
+        Ok(out)
+    })
+    .await
+    .map_err(err)?
+}
+
+#[derive(Serialize)]
+pub struct AddonContent {
+    /// Addon file name without the `.disabled` suffix, as stored for the mod's files.
+    pub name: String,
+    pub content: Content,
+}
+
+/// What each addon installed by this app contains (models, textures, which hero, ...).
+#[tauri::command]
+pub async fn describe_installed(state: State<'_, AppState>) -> Result<Vec<AddonContent>, String> {
+    let Some(g) = state.game().ok().flatten() else { return Ok(vec![]) };
+    tokio::task::spawn_blocking(move || {
+        scan_addons(&g.addons_dir).map_err(err).map(|v| {
+            v.into_iter()
+                .filter(|a| a.ours)
+                .filter_map(|a| {
+                    let name = a.file_name.strip_suffix(DISABLED_SUFFIX).unwrap_or(&a.file_name).to_string();
+                    a.entries.ok().map(|e| AddonContent { name, content: describe(&e) })
                 })
                 .collect()
         })
@@ -224,6 +285,23 @@ pub async fn set_mod_enabled(state: State<'_, AppState>, id: i64, enabled: bool)
         let journal = Journal::open(&d.journal);
         let ctx = Ctx { game: &game, staging: &d.staging, backups: &d.backups, journal: &journal, limits: Limits::default() };
         toggle_mod(&ctx, id, &names, enabled).map(|_| ())
+    })
+    .await
+    .map_err(err)?
+    .map_err(err)
+}
+
+/// Switch a mod installed by another manager on or off (renaming its files the way that manager does).
+/// `files` are the addon file names of the mod; `id` is its catalog id when known.
+#[tauri::command]
+pub async fn set_foreign_enabled(state: State<'_, AppState>, files: Vec<String>, id: Option<String>, enabled: bool) -> Result<(), String> {
+    let _guard = state.busy.lock().await;
+    let game = game(&state)?;
+    let d = dirs(&state);
+    tokio::task::spawn_blocking(move || {
+        let journal = Journal::open(&d.journal);
+        let ctx = Ctx { game: &game, staging: &d.staging, backups: &d.backups, journal: &journal, limits: Limits::default() };
+        toggle_foreign(&ctx, id.as_deref().filter(|i| crate::library::foreign_id::is_catalog_id(i)), &files, enabled).map(|_| ())
     })
     .await
     .map_err(err)?

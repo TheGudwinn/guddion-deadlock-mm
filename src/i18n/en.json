@@ -52,7 +52,7 @@
   },
   "library": {
     "title": "Library",
-    "subtitle": "Mods installed through the manager. The slot number sets the load order.",
+    "subtitle": "Every mod in the game folder, whoever installed it. Turn mods on and off with the check mark.",
     "slot": "Slot",
     "enabled": "Enabled",
     "disabled": "Disabled",
@@ -66,11 +66,11 @@
     "empty": "Nothing installed yet. Find a mod in the catalog and press Install.",
     "toCatalog": "Open catalog",
     "foreign": "Other addons in the game folder",
-    "foreignNote": "Installed by other managers or by hand. This manager never changes or deletes them.",
+    "foreignNote": "Installed by other managers or by hand. Never changed or deleted here.",
     "entries": "{{count}} files inside",
     "unreadable": "could not be read",
     "files": "files: {{count}}",
-    "orderNote": "Higher in the list means a lower slot number. When two mods change the same file the game decides; we assume the lower number wins, but this has not been verified in the game yet. Drag a mod by its plate or use the arrows.",
+    "orderNote": "Higher in the list means a lower slot and higher priority (not yet verified in the game). Drag by the slot plate or use the arrows.",
     "moveUp": "Move up",
     "moveDown": "Move down",
     "reordered": "Mod order changed. You can undo it.",
@@ -85,7 +85,30 @@
     "update": "Update",
     "updated": "“{{name}}” updated. Slot and state are kept; you can undo this.",
     "patchTitle": "The game was updated after these mods were installed",
-    "patchText": "Mods installed on an older build: {{count}}. Current game build is {{build}}. A patch can break mods, so check for updates. If the author has not released one, the mod has to wait."
+    "patchText": "Mods installed on an older build: {{count}}. Current game build is {{build}}. A patch can break mods, so check for updates. If the author has not released one, the mod has to wait.",
+    "search": "Search by name, hero or type",
+    "totals": "Mods: {{count}} · enabled: {{enabled}} · {{size}}",
+    "noMatch": "Nothing matches the search.",
+    "noContent": "Contents not available (file missing or unreadable)",
+    "showInside": "What is inside",
+    "hideInside": "Hide",
+    "heroHint": "Hero folder in the files",
+    "peekKinds": "By type",
+    "peekFiles": "Files ({{count}})",
+    "peekMore": "…and {{count}} more",
+    "peekNote": "Worked out from the file paths inside the addon. It is a guess to help you recognise a mod; nothing is opened or run.",
+    "foreignCount": "{{count}} mods, {{on}} on",
+    "state": {
+      "on": "On",
+      "off": "Off",
+      "partial": "Partly on"
+    },
+    "stateHint": "The game only loads files named pak##_dir.vpk. Other managers switch a mod off by putting its id in front of the name.",
+    "modId": "Mod #{{id}}",
+    "unknown": "Unidentified addon",
+    "unknownTitle": "Could not identify: {{count}}",
+    "unknownNote": "No mod id in the file name or in the other manager's manifest, so the name is unknown. The file names inside are shown to help you recognise it.",
+    "foreignWarn": "If Deadlock Mod Manager is running while you switch a mod here, it may rewrite its own records. The mod itself stays correct; the name is remembered here."
   },
   "action": {
     "install": "install “{{name}}”",
@@ -94,7 +117,8 @@
     "generic": "last action",
     "profile": "switch profile “{{name}}”",
     "reorder": "mod reorder",
-    "update": "update of “{{name}}”"
+    "update": "update of “{{name}}”",
+    "foreign": "switching a mod"
   },
   "activity": {
     "downloading": "Downloading “{{name}}”",
@@ -141,7 +165,9 @@
     "update_no_source": "The manager does not remember which file this mod was installed from, so versions cannot be compared. Remove the mod and install it again from the catalog; updates will work after that.",
     "update_slot_conflict": "The new version needs more slots than the old one and the next slot is taken. The old version was restored. Remove or move a neighbouring mod and try again.",
     "mod_not_found": "The mod was not found in the library.",
-    "already_queued": "This mod is already in the download queue."
+    "already_queued": "This mod is already in the download queue.",
+    "file_busy": "A file is in use or protected, so it could not be changed. Close the game and other mod managers and try again.",
+    "chunks": "This mod is split over several chunk files, so it cannot be switched safely from here."
   },
   "profiles": {
     "title": "Profiles",
@@ -345,5 +371,15 @@
     "conflicts_other": "Overlaps: {{count}}",
     "updates_one": "Updates: {{count}}",
     "updates_other": "Updates: {{count}}"
+  },
+  "kind": {
+    "models": "Models",
+    "textures": "Textures",
+    "sounds": "Sounds",
+    "interface": "Interface",
+    "effects": "Effects",
+    "maps": "Maps",
+    "scripts": "Scripts",
+    "other": "Other"
   }
 }

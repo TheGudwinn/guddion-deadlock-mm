@@ -7,7 +7,8 @@ pub fn build_client(cfg: &NetConfig) -> Result<reqwest::Client, NetError> {
     let mut b = reqwest::Client::builder()
         .connect_timeout(Duration::from_secs(cfg.connect_timeout_secs))
         .read_timeout(Duration::from_secs(cfg.read_timeout_secs))
-        .user_agent(concat!("deadlock-mm/", env!("CARGO_PKG_VERSION")));
+        .user_agent(concat!("deadlock-mm/", env!("CARGO_PKG_VERSION")))
+        .redirect(redirect_policy());
 
     match cfg.proxy.mode {
         ProxyMode::System => {}
@@ -31,4 +32,20 @@ pub fn build_client(cfg: &NetConfig) -> Result<reqwest::Client, NetError> {
         }
     }
     Ok(b.build()?)
+}
+
+/// Follow a few redirects, but only to http(s) and never from https down to plain http.
+fn redirect_policy() -> reqwest::redirect::Policy {
+    reqwest::redirect::Policy::custom(|attempt| {
+        if attempt.previous().len() >= 5 {
+            return attempt.error("too many redirects");
+        }
+        let to = attempt.url().scheme().to_string();
+        let downgrade = to == "http" && attempt.previous().last().is_some_and(|u| u.scheme() == "https");
+        if (to != "http" && to != "https") || downgrade {
+            attempt.error("redirect to an insecure or unsupported scheme")
+        } else {
+            attempt.follow()
+        }
+    })
 }

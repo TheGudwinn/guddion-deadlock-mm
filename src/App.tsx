@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { listen } from "@tauri-apps/api/event";
+import { useForeignMods, type ForeignGroup } from "./lib/foreign";
 import {
   call,
   isTauri,
   type ApplyResult,
   type Profile,
+  type AddonContent,
   type ForeignAddon,
   type GameInstall,
   type InstallResult,
@@ -43,6 +45,8 @@ export default function App() {
   const [game, setGame] = useState<GameInstall | null | undefined>(undefined);
   const [installed, setInstalled] = useState<InstalledMod[] | null>(null);
   const [foreign, setForeign] = useState<ForeignAddon[]>([]);
+  const [contents, setContents] = useState<AddonContent[]>([]);
+  const { groups, known } = useForeignMods(foreign);
   const [last, setLast] = useState<LastAction | null>(null);
   const [profiles, setProfiles] = useState<Profile[] | null>(null);
   const [open, setOpen] = useState<Mod | null>(null);
@@ -58,15 +62,17 @@ export default function App() {
   const [updatePct, setUpdatePct] = useState<number | null>(null);
 
   const refresh = useCallback(async () => {
-    const [mods, f, l, pr] = await Promise.all([
+    const [mods, f, c, l, pr] = await Promise.all([
       call<InstalledMod[]>("list_installed").catch(() => null),
       call<ForeignAddon[]>("list_foreign_addons").catch(() => []),
+      call<AddonContent[]>("describe_installed").catch(() => []),
       call<LastAction | null>("last_action").catch(() => null),
       call<Profile[]>("list_profiles").catch(() => null),
     ]);
     setProfiles(pr);
     setInstalled(mods);
     setForeign(f);
+    setContents(c);
     setLast(l);
   }, []);
 
@@ -286,6 +292,7 @@ export default function App() {
     });
 
   const toggle = (id: number, enabled: boolean) => void run(() => call("set_mod_enabled", { id, enabled }));
+  const toggleForeign = (g: ForeignGroup, enabled: boolean) => void run(() => call("set_foreign_enabled", { files: g.files.map((f) => f.name), id: g.id, enabled }));
   const remove = (id: number) => void run(() => call("uninstall_mod", { id }));
   const reorder = (ids: number[]) =>
     void run(async () => {
@@ -357,11 +364,14 @@ export default function App() {
         {view === "home" ? (
           <Home
             installed={installed}
+            groups={groups}
+            known={known}
             report={modReport}
             stats={stats}
             busy={busy}
             onOpen={setOpen}
             onToggle={toggle}
+            onToggleForeign={toggleForeign}
             onUpdate={(id) => void updateMod(id)}
             onGo={setView}
           />
@@ -403,10 +413,13 @@ export default function App() {
         ) : (
           <Library
             mods={installed}
-            foreign={foreign}
+            groups={groups}
+            known={known}
+            contents={contents}
             last={last}
             busy={busy}
             onToggle={toggle}
+            onToggleForeign={toggleForeign}
             onRemove={remove}
             onUndo={undo}
             onReorder={reorder}
@@ -421,8 +434,8 @@ export default function App() {
       </main>
 
         <footer className="statusbar">
-          <span>{t("status.mods", { count: installed?.length ?? 0 })}</span>
-          <span>{t("status.enabled", { count: installed?.filter((m) => m.enabled).length ?? 0 })}</span>
+          <span>{t("status.mods", { count: (installed?.length ?? 0) + groups.length })}</span>
+          <span>{t("status.enabled", { count: (installed?.filter((m) => m.enabled).length ?? 0) + groups.filter((g) => g.enabled > 0).length })}</span>
           <span className={stats && stats.conflicts > 0 ? "status-warn" : ""}>{t("status.conflicts", { count: stats?.conflicts ?? 0 })}</span>
           <span>{t("status.updates", { count: modReport?.updates.length ?? 0 })}</span>
           {game?.build_id && <span>{t("game.build", { id: game.build_id })}</span>}

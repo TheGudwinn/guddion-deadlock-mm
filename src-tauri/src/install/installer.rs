@@ -1,6 +1,6 @@
 use super::error::InstallError;
 use super::extract::{detect_kind, extract_vpks, ArchiveKind, Limits};
-use super::gameinfo::{ensure_addons_path, PatchResult};
+use super::gameinfo::{ensure_addons_path, write_atomic, PatchResult};
 use super::journal::{ensure_within, Journal, Op};
 use super::pak_order::{addon_name, disabled_name, slot_of};
 use super::vpk::{read_vpk_index, VpkFile};
@@ -115,18 +115,26 @@ fn install_in_batch(ctx: &Ctx, archive: &Path, mod_id: i64, first_slot: u8, batc
         }
 
         // 3. Make sure the game reads addons/ (backup + journal before editing gameinfo.gi).
-        let gi_text = std::fs::read_to_string(&ctx.game.gameinfo)?;
+        let gi_bytes = std::fs::read(&ctx.game.gameinfo)?;
+        // A file that is not valid UTF-8 is not something we can edit safely.
+        let gi_text = String::from_utf8(gi_bytes.clone()).map_err(|_| InstallError::GameinfoUnrecognized)?;
         let patched = match ensure_addons_path(&gi_text) {
             PatchResult::AlreadyPresent => false,
             PatchResult::Unrecognized => return Err(InstallError::GameinfoUnrecognized),
             PatchResult::Patched(new_text) => {
+                // The patched text must itself be recognized as complete before it touches the disk.
+                if ensure_addons_path(&new_text) != PatchResult::AlreadyPresent {
+                    return Err(InstallError::GameinfoUnrecognized);
+                }
                 std::fs::create_dir_all(ctx.backups)?;
                 let backup = ctx.backups.join(format!("{batch}_gameinfo.gi"));
-                std::fs::copy(&ctx.game.gameinfo, &backup)?;
+                // Backup first, flushed to disk and verified byte for byte, then journaled.
+                write_atomic(&backup, &gi_bytes)?;
+                if std::fs::read(&backup)? != gi_bytes {
+                    return Err(InstallError::Journal("gameinfo.gi backup does not match the original".into()));
+                }
                 ctx.journal.record(&batch, Op::ReplaceFile { path: ctx.game.gameinfo.clone(), backup })?;
-                let tmp = ctx.game.gameinfo.with_extension("gi.ddmm-tmp");
-                std::fs::write(&tmp, new_text)?;
-                std::fs::rename(&tmp, &ctx.game.gameinfo)?;
+                write_atomic(&ctx.game.gameinfo, new_text.as_bytes())?;
                 true
             }
         };

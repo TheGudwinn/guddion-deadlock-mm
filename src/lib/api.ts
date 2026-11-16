@@ -57,7 +57,20 @@ export type ProfileMod = {
 export type Profile = { id: number; name: string; active: boolean; mods: ProfileMod[] };
 export type ApplyResult = { enabled: number; disabled: number; missing: Omit<ProfileMod, "installed">[] };
 
-export type ForeignAddon = { name: string; size: number; entries: number | null; error: string | null };
+export type KindKey = "models" | "textures" | "sounds" | "interface" | "effects" | "maps" | "scripts" | "other";
+export type KindCount = { kind: KindKey; count: number; bytes: number };
+export type HeroHit = { code: string; name: string; files: number };
+/** What an addon contains, worked out from the file paths inside its VPK. */
+export type Content = {
+  total_files: number;
+  total_bytes: number;
+  kinds: KindCount[];
+  heroes: HeroHit[];
+  sample: string[];
+  folders: [string, number][];
+};
+export type AddonContent = { name: string; content: Content };
+export type ForeignAddon = { name: string; size: number; entries: number | null; error: string | null; content: Content | null; remote_id: string | null; enabled: boolean };
 export type LastAction = { kind: string; mod_name: string | null };
 export type ProgressEvent = { stage: "download" | "install"; downloaded: number; total: number | null };
 

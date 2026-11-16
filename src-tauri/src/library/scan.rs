@@ -3,6 +3,27 @@ use crate::install::pak_order::{is_ours, DISABLED_SUFFIX};
 use crate::install::vpk::{read_vpk_index, VpkFile};
 use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
+use std::sync::{LazyLock, Mutex};
+use std::time::SystemTime;
+
+type Index = Result<Vec<VpkFile>, String>;
+
+/// Parsed VPK directories by path, valid while the file's size and modification time are unchanged. The
+/// library, its statistics and the contents view all scan the folder; without this each scan re-read
+/// the directory part of every VPK (tens to hundreds of files).
+static INDEX_CACHE: LazyLock<Mutex<HashMap<PathBuf, (u64, Option<SystemTime>, Index)>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
+
+fn read_index_cached(path: &Path, size: u64, modified: Option<SystemTime>) -> Index {
+    let mut cache = INDEX_CACHE.lock().unwrap_or_else(|e| e.into_inner());
+    if let Some((s, m, idx)) = cache.get(path) {
+        if *s == size && *m == modified {
+            return idx.clone();
+        }
+    }
+    let idx = read_vpk_index(path).map(|i| i.files);
+    cache.insert(path.to_path_buf(), (size, modified, idx.clone()));
+    idx
+}
 
 #[derive(Debug, Clone)]
 pub struct ExistingAddon {
@@ -10,13 +31,15 @@ pub struct ExistingAddon {
     pub path: PathBuf,
     /// Installed by this app (as opposed to another manager or by hand).
     pub ours: bool,
+    /// The game does not load this file: switched off with our `.disabled` suffix, or another manager's
+    /// file that is not named `pak##_dir.vpk` (that is how they switch a mod off).
     pub disabled: bool,
     pub size: u64,
     /// Parsed VPK directory, or the reason it could not be read.
     pub entries: Result<Vec<VpkFile>, String>,
 }
 
-/// List every addon VPK directory file (`*_dir.vpk`, plus our own `*.disabled` ones).
+/// List every addon VPK directory file (`*_dir.vpk`), including switched-off ones (`*.disabled`).
 pub fn scan_addons(addons_dir: &Path) -> std::io::Result<Vec<ExistingAddon>> {
     let mut out = Vec::new();
     let rd = match std::fs::read_dir(addons_dir) {
@@ -30,19 +53,17 @@ pub fn scan_addons(addons_dir: &Path) -> std::io::Result<Vec<ExistingAddon>> {
             continue;
         }
         let file_name = ent.file_name().to_string_lossy().into_owned();
-        let disabled = file_name.ends_with(DISABLED_SUFFIX);
         let base = file_name.strip_suffix(DISABLED_SUFFIX).unwrap_or(&file_name);
         if !base.ends_with("_dir.vpk") {
             continue; // .dmm.json, chunk files, etc.
         }
         let ours = is_ours(&file_name);
-        if disabled && !ours {
-            continue;
-        }
+        let disabled = file_name.ends_with(DISABLED_SUFFIX) || (!ours && !crate::library::foreign_id::is_loaded_name(&file_name));
         let path = ent.path();
+        let meta = ent.metadata()?;
         out.push(ExistingAddon {
-            entries: read_vpk_index(&path).map(|i| i.files),
-            size: ent.metadata()?.len(),
+            entries: read_index_cached(&path, meta.len(), meta.modified().ok()),
+            size: meta.len(),
             file_name,
             path,
             ours,
@@ -97,13 +118,14 @@ pub fn overlaps(new: &[VpkFile], existing: &[ExistingAddon]) -> Vec<Overlap> {
     out
 }
 
-/// Files provided by two or more ENABLED addons whose contents differ (same path, different CRC).
+/// Files provided by two or more addons the game loads whose contents differ (same path, different CRC).
 /// Identical copies are harmless and disabled addons do not count. Unreadable addons are skipped.
 pub fn real_conflicts(addons: &[ExistingAddon]) -> usize {
     use crate::library::conflicts::{find_conflicts, ModFiles};
     let mods: Vec<ModFiles> = addons
         .iter()
         .enumerate()
+        // Only files the game actually loads can conflict (switched-off mods are marked `disabled`).
         .filter(|(_, a)| !a.disabled)
         .filter_map(|(i, a)| a.entries.as_ref().ok().map(|e| ModFiles { mod_id: i as i64, files: e.iter().map(|f| (f.path.clone(), f.crc)).collect() }))
         .collect();

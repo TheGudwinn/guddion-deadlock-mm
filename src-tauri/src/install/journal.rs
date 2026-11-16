@@ -56,9 +56,8 @@ impl Journal {
             s.push_str(&serde_json::to_string(e).map_err(jerr)?);
             s.push('\n');
         }
-        let tmp = self.path.with_extension("tmp");
-        std::fs::write(&tmp, s)?;
-        std::fs::rename(&tmp, &self.path)?;
+        // Same crash-safe replace as every other file we own: temp file, flushed, then renamed.
+        super::gameinfo::write_atomic(&self.path, s.as_bytes())?;
         Ok(())
     }
 

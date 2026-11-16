@@ -804,32 +804,203 @@ select.field option {
 
 .foreign {
   margin-top: 28px;
-  padding: 4px 18px;
+  padding: 16px 18px 8px;
   border: 1px solid var(--edge);
   border-radius: var(--r-card);
   background: var(--glass);
 }
-.foreign summary {
-  cursor: pointer;
-  padding: 14px 0;
+.foreign-title {
+  margin: 0 0 6px;
   font: 500 11px/1 var(--font-display);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--muted);
 }
-.foreign ul {
+.foreign-list {
   list-style: none;
   margin: 0;
   padding: 0;
 }
-.foreign li {
+.foreign-item {
+  padding: 12px 0;
+  border-top: 1px solid var(--edge);
+}
+.foreign-head {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
-  padding: 8px 0;
+}
+.slot-main {
+  min-width: 0;
+}
+.slot-error {
+  color: var(--danger);
+}
+
+/* library: search, summary, content tags and the "what is inside" panel */
+.lib-tools {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+.lib-tools .search {
+  flex: 1 1 260px;
+  max-width: 420px;
+}
+.lib-totals {
+  color: var(--muted);
+  font: 400 12px/1.4 var(--font-mono);
+}
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: var(--pill);
+  border: 1px solid var(--edge);
+  background: var(--glass);
+  color: var(--muted);
+  font: 500 11px/1.3 var(--font-body);
+}
+.tag b {
+  font: 500 11px/1 var(--font-mono);
+  color: var(--text);
+}
+.tag-hero {
+  color: var(--on-white);
+  background: var(--white);
+  border-color: var(--white);
+  font-weight: 600;
+}
+.tag-models {
+  border-color: rgb(161 147 255 / 0.55);
+}
+.tag-textures {
+  border-color: rgb(127 227 194 / 0.55);
+}
+.tag-sounds {
+  border-color: rgb(255 201 77 / 0.55);
+}
+.tag-interface {
+  border-color: rgb(120 190 255 / 0.55);
+}
+.tag-effects {
+  border-color: rgb(255 138 138 / 0.55);
+}
+.peek-toggle {
+  margin-top: 8px;
+  padding: 2px 0;
+  background: none;
+  border: 0;
+  color: var(--accent);
+  font: 500 12px/1.4 var(--font-body);
+  cursor: pointer;
+}
+.peek-toggle::after {
+  content: " ▾";
+}
+.peek-toggle[aria-expanded="true"]::after {
+  content: " ▴";
+}
+.peek-toggle:hover {
+  text-decoration: underline;
+}
+.peek {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 24px;
+  margin-top: 10px;
+  padding-top: 14px;
   border-top: 1px solid var(--edge);
+}
+.foreign-item .peek {
+  border-top: 0;
+  padding-top: 4px;
+}
+.peek h3 {
+  margin: 0 0 10px;
+  font: 500 11px/1 var(--font-display);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.kbars,
+.paths {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.kbars li {
+  display: grid;
+  grid-template-columns: 92px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 3px 0;
   font: 400 12px/1.4 var(--font-mono);
   color: var(--muted);
+}
+.kbar {
+  display: block;
+  height: 6px;
+  border-radius: var(--pill);
+  background: var(--accent);
+  opacity: 0.85;
+}
+.kbar-textures {
+  background: var(--ok);
+}
+.kbar-sounds {
+  background: var(--star);
+}
+.kbar-interface {
+  background: rgb(120 190 255);
+}
+.kbar-effects {
+  background: var(--danger);
+}
+.peek-folders,
+.peek-note {
+  margin: 10px 0 0;
+  color: var(--muted);
+  font: 400 12px/1.5 var(--font-mono);
+}
+.peek-note {
+  font-family: var(--font-body);
+  color: var(--dim);
+}
+.paths {
+  max-height: 220px;
+  overflow: auto;
+  padding: 8px 10px;
+  border: 1px solid var(--edge);
+  border-radius: var(--r-field);
+  background: rgb(0 0 0 / 0.18);
+  font: 400 11px/1.7 var(--font-mono);
+  color: var(--muted);
+}
+.paths li {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.paths .paths-more {
+  color: var(--dim);
+  font-style: italic;
+}
+@media (max-width: 820px) {
+  .peek {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* reorder */
@@ -1866,4 +2037,187 @@ select.field {
 }
 .mine-row .switch {
   margin-top: 8px;
+}
+
+/* library: one chevron per row instead of repeated text links; catalog thumbnail for identified addons */
+.btn-chevron {
+  width: 28px;
+  height: 28px;
+  transition: transform 160ms;
+}
+.btn-chevron[aria-expanded="true"] {
+  transform: rotate(180deg);
+}
+.foreign-thumb {
+  width: 56px;
+  height: 56px;
+  flex: none;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid var(--edge);
+}
+.foreign-head .slot-main {
+  flex: 1;
+}
+
+/* foreign addons: grouped per mod, with an on/off state */
+.state {
+  flex: none;
+  align-self: flex-start;
+  padding: 3px 10px;
+  border-radius: var(--pill);
+  border: 1px solid var(--edge);
+  font: 500 11px/1.3 var(--font-body);
+  color: var(--muted);
+}
+.state-on {
+  color: var(--ok);
+  border-color: rgb(127 227 194 / 0.55);
+}
+.state-partial {
+  color: var(--star);
+  border-color: rgb(255 201 77 / 0.55);
+}
+.foreign-off .slot-name,
+.foreign-off .foreign-thumb {
+  opacity: 0.6;
+}
+.group-files {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border: 1px solid var(--edge);
+  border-radius: var(--r-field);
+  background: rgb(0 0 0 / 0.18);
+}
+.group-files li {
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 0;
+  font: 400 11px/1.7 var(--font-mono);
+  color: var(--muted);
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dim);
+}
+.dot-on {
+  background: var(--ok);
+}
+
+/* status badge and chevron sit together on one line, vertically centred */
+.foreign-side {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+  align-self: center;
+}
+.foreign-side .state {
+  align-self: auto;
+}
+.btn-chevron-gap {
+  width: 28px;
+  height: 28px;
+  flex: none;
+}
+.unknown {
+  margin-top: 8px;
+  border-top: 1px solid var(--edge);
+}
+.unknown summary {
+  cursor: pointer;
+  padding: 14px 0 6px;
+  font: 500 11px/1 var(--font-display);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* home: mods installed by other managers sit in the same list */
+.mine-thumb {
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 12px;
+  object-fit: cover;
+  border: 1px solid var(--edge);
+}
+.mine-thumb-empty {
+  background: var(--glass);
+}
+
+/* read-only on/off mark for mods managed by other programs */
+.mark {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid var(--edge-hi);
+  background: transparent;
+  color: var(--dim);
+}
+.mark svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.mark-on {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: var(--on-white);
+}
+.mark-partial {
+  border-color: var(--star);
+  color: var(--star);
+}
+.foreign-side .mark {
+  align-self: center;
+}
+
+/* one list for every mod: thumbnail cell, clickable check mark */
+.row-thumb {
+  width: 60px;
+  height: 60px;
+  border-radius: 16px;
+  object-fit: cover;
+  border: 1px solid var(--edge);
+  background: var(--glass);
+}
+.row-thumb-empty {
+  display: block;
+}
+.mark-btn {
+  padding: 0;
+  cursor: pointer;
+  transition: transform 120ms, box-shadow 120ms, border-color 120ms;
+}
+.mark-btn:hover:not(:disabled) {
+  transform: scale(1.08);
+  border-color: var(--accent);
+}
+.mark-on.mark-btn:hover:not(:disabled) {
+  box-shadow: 0 0 12px rgb(127 227 194 / 0.45);
+}
+.mark-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.mark-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.slot-row > .group-files {
+  grid-column: 1 / -1;
 }

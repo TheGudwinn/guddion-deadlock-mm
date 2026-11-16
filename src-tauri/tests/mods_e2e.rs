@@ -414,4 +414,59 @@ fn conflict_count_ignores_identical_copies_and_disabled_addons() {
     // An identical copy is harmless.
     std::fs::write(game.addons_dir.join("555_pak03_dir.vpk"), &same).unwrap();
     assert_eq!(real_conflicts(&scan_addons(&game.addons_dir).unwrap()), 0);
+
+    // Another manager's switched-off mod (id prefix) is not loaded by the game, so it cannot conflict,
+    // even with different content; the same content under a loaded name (pak##_dir.vpk) does.
+    std::fs::write(game.addons_dir.join("666_pak04_dir.vpk"), &b).unwrap();
+    assert_eq!(real_conflicts(&scan_addons(&game.addons_dir).unwrap()), 0, "switched-off foreign mod is ignored");
+    std::fs::write(game.addons_dir.join("pak07_dir.vpk"), &b).unwrap();
+    assert_eq!(real_conflicts(&scan_addons(&game.addons_dir).unwrap()), 1, "a loaded foreign file counts");
+}
+
+#[test]
+fn foreign_mods_can_be_switched_off_and_on_and_undone() {
+    use deadlock_mm_lib::install::foreign::toggle_foreign;
+    let e = env();
+    let game = validate_game_dir(&e.root).unwrap();
+    let c = ctx(&e, &game);
+    let dir = &game.addons_dir;
+    std::fs::create_dir_all(dir).unwrap();
+    let v = build_vpk(&[("models/a.vmdl_c", b"A")]);
+    std::fs::write(dir.join("pak01_dir.vpk"), &v).unwrap();
+    std::fs::write(dir.join("pak02_dir.vpk"), &v).unwrap();
+    let names = |d: &Path| {
+        let mut n: Vec<String> = std::fs::read_dir(d).unwrap().flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+        n.sort();
+        n
+    };
+
+    // Off: the catalog id goes in front of the name, which the game does not load.
+    let batch = toggle_foreign(&c, Some("650634"), &["pak01_dir.vpk".into(), "pak02_dir.vpk".into()], false).unwrap();
+    assert_eq!(names(dir), ["650634_pak01_dir.vpk", "650634_pak02_dir.vpk"]);
+
+    // Undo restores the exact names.
+    e.journal.rollback_batch(&batch).unwrap();
+    assert_eq!(names(dir), ["pak01_dir.vpk", "pak02_dir.vpk"]);
+
+    // Off, then another mod takes pak01: switching back on picks the lowest free slot.
+    toggle_foreign(&c, Some("650634"), &["pak01_dir.vpk".into()], false).unwrap();
+    std::fs::write(dir.join("pak01_dir.vpk"), &v).unwrap();
+    toggle_foreign(&c, Some("650634"), &["650634_pak01_dir.vpk".into()], true).unwrap();
+    assert_eq!(names(dir), ["pak01_dir.vpk", "pak02_dir.vpk", "pak03_dir.vpk"]);
+
+    // Without a catalog id the .disabled suffix is used and removed again.
+    toggle_foreign(&c, None, &["pak03_dir.vpk".into()], false).unwrap();
+    assert!(dir.join("pak03_dir.vpk.disabled").exists());
+    toggle_foreign(&c, None, &["pak03_dir.vpk.disabled".into()], true).unwrap();
+    assert!(dir.join("pak03_dir.vpk").exists());
+
+    // Refusals: this manager's own files, paths, missing files, and mods split over chunk files.
+    std::fs::write(dir.join("ddmm1_pak05_dir.vpk"), &v).unwrap();
+    assert!(toggle_foreign(&c, None, &["ddmm1_pak05_dir.vpk".into()], false).is_err());
+    assert!(toggle_foreign(&c, None, &["../gameinfo.gi".into()], false).is_err());
+    assert!(toggle_foreign(&c, None, &["pak99_dir.vpk".into()], false).is_err());
+    std::fs::write(dir.join("pak09_dir.vpk"), &v).unwrap();
+    std::fs::write(dir.join("pak09_000.vpk"), b"chunk").unwrap();
+    assert!(matches!(toggle_foreign(&c, None, &["pak09_dir.vpk".into()], false), Err(InstallError::ExternalChunks(_))));
+    assert!(dir.join("pak09_dir.vpk").exists(), "nothing was renamed");
 }

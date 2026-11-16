@@ -61,6 +61,8 @@ export function humanizeError(t: TFunction, e: unknown): string {
   if (code === "update_install_failed") return t("errors.update_install_failed", { message: arg });
   if (/signature/i.test(raw)) return t("errors.update_signature");
   if (code === "order_mismatch") return t("errors.order_mismatch");
+  if (/os error (5|32)\b|access is denied|used by another process|permission denied/i.test(raw)) return t("errors.file_busy");
+  if (/external chunk files/i.test(raw)) return t("errors.chunks");
   if (/password-protected/i.test(raw)) return t("errors.encrypted");
   if (/forbidden file type/i.test(raw)) return t("errors.forbidden");
   if (/unsafe path|escapes the allowed/i.test(raw)) return t("errors.unsafe");

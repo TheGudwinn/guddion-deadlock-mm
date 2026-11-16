@@ -10,6 +10,12 @@ pub enum NetError {
     Status(u16),
     #[error("integrity check failed: expected {expected}, got {actual}")]
     HashMismatch { expected: String, actual: String },
+    #[error("invalid download url: {0}")]
+    InvalidUrl(String),
+    #[error("download exceeds the size limit")]
+    TooLarge,
+    #[error("unexpected server response: {0}")]
+    BadResponse(String),
     #[error("download paused")]
     Paused,
     #[error("io error: {0}")]
@@ -25,6 +31,8 @@ impl NetError {
             NetError::Status(s) => *s == 408 || *s == 429 || *s >= 500,
             NetError::Request(e) => e.is_timeout() || e.is_connect() || e.is_request() || e.is_body() || e.is_decode(),
             NetError::Io(_) => true,
+            // A misbehaving server or a stale partial file: start over, possibly on another mirror.
+            NetError::BadResponse(_) => true,
             _ => false,
         }
     }

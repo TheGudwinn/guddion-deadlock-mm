@@ -104,6 +104,8 @@ pub struct Category {
     pub name: String,
     pub item_count: u64,
     pub has_children: bool,
+    /// Picture of the category (for heroes: the portrait).
+    pub icon: Option<String>,
 }
 
 #[async_trait]

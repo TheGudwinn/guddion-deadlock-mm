@@ -96,3 +96,42 @@ pub async fn mod_details(state: State<'_, AppState>, id: String) -> Result<ModDe
 pub async fn list_categories(state: State<'_, AppState>, parent: Option<i64>) -> Result<Vec<Category>, String> {
     state.source().categories(parent).await.map_err(err)
 }
+
+/// Hero card pictures (280x380) keyed by a simplified hero name. GameBanana's own category icons are only 40x40.
+/// The list is large, so it is fetched once per run; on failure nothing is cached and the caller falls back.
+#[tauri::command]
+pub async fn hero_portraits(state: State<'_, AppState>) -> Result<std::collections::HashMap<String, String>, String> {
+    static CACHE: tokio::sync::OnceCell<std::collections::HashMap<String, String>> = tokio::sync::OnceCell::const_new();
+    let client = state.net.client();
+    CACHE
+        .get_or_try_init(|| async move {
+            let v: serde_json::Value = client
+                .get("https://api.deadlock-api.com/v1/assets/heroes")
+                .timeout(std::time::Duration::from_secs(20))
+                .send()
+                .await
+                .map_err(|e| e.to_string())?
+                .error_for_status()
+                .map_err(|e| e.to_string())?
+                .json()
+                .await
+                .map_err(|e| e.to_string())?;
+            let mut out = std::collections::HashMap::new();
+            for h in v.as_array().into_iter().flatten() {
+                let name = h.get("name").and_then(|x| x.as_str());
+                let img = h.pointer("/images/icon_hero_card_webp").and_then(|x| x.as_str());
+                if let (Some(n), Some(i)) = (name, img) {
+                    out.insert(hero_key(n), i.to_string());
+                }
+            }
+            Ok::<_, String>(out)
+        })
+        .await
+        .cloned()
+}
+
+/// "The Doorman" and "Doorman" are the same hero; punctuation and case do not matter.
+fn hero_key(name: &str) -> String {
+    let l = name.to_lowercase();
+    l.strip_prefix("the ").unwrap_or(&l).chars().filter(|c| c.is_alphanumeric()).collect()
+}

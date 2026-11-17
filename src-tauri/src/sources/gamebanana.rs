@@ -119,6 +119,8 @@ struct WireCat {
     children: u64,
     #[serde(rename = "_bIsObsolete", default)]
     obsolete: bool,
+    #[serde(rename = "_sIconUrl", default)]
+    icon: Option<String>,
 }
 
 // ---- mapping (pure, unit-tested on real fixtures) -----------------------------------------------
@@ -170,7 +172,7 @@ fn parse_details(body: &[u8]) -> Result<ModDetails, SourceError> {
 
 fn parse_categories(body: &[u8]) -> Result<Vec<Category>, SourceError> {
     let v: Vec<WireCat> = serde_json::from_slice(body).map_err(|e| SourceError::Parse(e.to_string()))?;
-    Ok(v.into_iter().filter(|c| !c.obsolete).map(|c| Category { id: c.id, name: c.name, item_count: c.items, has_children: c.children > 0 }).collect())
+    Ok(v.into_iter().filter(|c| !c.obsolete).map(|c| Category { id: c.id, name: c.name, item_count: c.items, has_children: c.children > 0, icon: c.icon }).collect())
 }
 
 fn sort_param(s: Sort) -> Option<&'static str> {
@@ -224,6 +226,11 @@ impl GameBanana {
         }
         *last = Some(Instant::now());
         drop(last);
+        self.get_now(path).await
+    }
+
+    /// A request the user is waiting on (an opened mod): it does not queue behind the background lists on the home page.
+    async fn get_now(&self, path: &str) -> Result<Vec<u8>, SourceError> {
         self.net.get_bytes(SOURCE_ID, path).await.map_err(|e| match e {
             NetError::Status(404) => SourceError::NotFound,
             e => SourceError::Net(e),
@@ -279,7 +286,7 @@ impl ModSource for GameBanana {
         if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) {
             return Err(SourceError::NotFound);
         }
-        parse_details(&self.get(&format!("apiv11/Mod/{id}/ProfilePage")).await?)
+        parse_details(&self.get_now(&format!("apiv11/Mod/{id}/ProfilePage")).await?)
     }
 
     async fn categories(&self, parent: Option<i64>) -> Result<Vec<Category>, SourceError> {

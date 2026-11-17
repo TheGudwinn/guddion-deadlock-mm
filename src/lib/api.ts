@@ -16,7 +16,7 @@ export type Mod = {
   page_url: string;
 };
 export type Page = { items: Mod[]; total: number; page: number; has_more: boolean; cached_at: number | null };
-export type Category = { id: number; name: string; item_count: number; has_children: boolean };
+export type Category = { id: number; name: string; item_count: number; has_children: boolean; icon: string | null };
 export type Sort = "default" | "newest" | "latest_modified" | "most_liked" | "most_viewed";
 
 export type ModFile = { id: string; name: string; size: number; url: string; md5: string | null; av_clean: boolean };

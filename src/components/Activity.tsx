@@ -1,4 +1,6 @@
+import { useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { useExit } from "../lib/motion";
 
 export type ActivityState =
   | { kind: "progress"; text: string; pct: number | null }
@@ -7,8 +9,14 @@ export type ActivityState =
 
 export default function Activity({ state, onDismiss }: { state: ActivityState | null; onDismiss: () => void }) {
   const { t } = useTranslation();
-  if (!state) return null;
-  const cls = state.kind === "error" ? "activity activity-err" : state.kind === "ok" ? "activity activity-ok" : "activity";
+  // keep the last message on screen while the toast slides out
+  const last = useRef(state);
+  if (state) last.current = state;
+  const { mounted, closing } = useExit(!!state, 220);
+  const shown = last.current;
+  if (!mounted || !shown) return null;
+  state = shown;
+  const cls = `${state.kind === "error" ? "activity activity-err" : state.kind === "ok" ? "activity activity-ok" : "activity"} ${closing ? "is-closing" : ""}`;
   return (
     <div className={cls} role={state.kind === "error" ? "alert" : "status"}>
       <div className="activity-row">

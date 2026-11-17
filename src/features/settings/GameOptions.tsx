@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useGamePrefs } from "../../lib/prefs";
 import { humanizeError } from "../../lib/format";
+import Select from "../../components/Select";
 
 /** Launch options block of the settings page: what the Play button starts the game with. */
 export default function GameOptions() {
@@ -29,11 +30,16 @@ export default function GameOptions() {
         <span>{t("settings.launch.console")}</span>
       </label>
       <div className="row">
-        <select className="field" aria-label={t("settings.launch.window")} value={prefs.window} onChange={(e) => put({ window: e.target.value as typeof prefs.window })}>
-          <option value="default">{t("settings.launch.windowDefault")}</option>
-          <option value="windowed">{t("settings.launch.windowed")}</option>
-          <option value="fullscreen">{t("settings.launch.fullscreen")}</option>
-        </select>
+        <Select
+          label={t("settings.launch.window")}
+          value={prefs.window}
+          onChange={(v) => put({ window: v as typeof prefs.window })}
+          options={[
+            { value: "default", label: t("settings.launch.windowDefault") },
+            { value: "windowed", label: t("settings.launch.windowed") },
+            { value: "fullscreen", label: t("settings.launch.fullscreen") },
+          ]}
+        />
       </div>
       <input className="field mono" value={prefs.extra} placeholder={t("settings.launch.extra")} aria-label={t("settings.launch.extra")} onChange={(e) => put({ extra: e.target.value })} />
       {error && <p className="form-error">{error}</p>}

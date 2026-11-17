@@ -1,3 +1,4 @@
+import Select from "../../components/Select";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useGamePrefs } from "../../lib/prefs";
@@ -72,11 +73,16 @@ function OwnSettings() {
         {fpsBad && <p className="form-error">{t("performance.fpsRange")}</p>}
         <label className="field-row">
           <span>{t("performance.vsync")}</span>
-          <select className="field" value={prefs.vsync} onChange={(e) => put({ vsync: e.target.value as GamePrefs["vsync"] })}>
-            <option value="default">{t("performance.byGame")}</option>
-            <option value="on">{t("performance.on")}</option>
-            <option value="off">{t("performance.offVsync")}</option>
-          </select>
+          <Select
+            label={t("performance.vsync")}
+            value={prefs.vsync}
+            onChange={(v) => put({ vsync: v as GamePrefs["vsync"] })}
+            options={[
+              { value: "default", label: t("performance.byGame") },
+              { value: "on", label: t("performance.on") },
+              { value: "off", label: t("performance.offVsync") },
+            ]}
+          />
         </label>
         <label className="check">
           <input type="checkbox" checked={prefs.show_fps} onChange={(e) => put({ show_fps: e.target.checked })} />
@@ -93,11 +99,16 @@ function OwnSettings() {
         <h2 className="block-title">{t("performance.launch")}</h2>
         <label className="field-row">
           <span>{t("performance.api")}</span>
-          <select className="field" value={prefs.api} onChange={(e) => put({ api: e.target.value as GamePrefs["api"] })}>
-            <option value="default">{t("performance.byGame")}</option>
-            <option value="dx11">DirectX 11</option>
-            <option value="vulkan">Vulkan</option>
-          </select>
+          <Select
+            label={t("performance.api")}
+            value={prefs.api}
+            onChange={(v) => put({ api: v as GamePrefs["api"] })}
+            options={[
+              { value: "default", label: t("performance.byGame") },
+              { value: "dx11", label: "DirectX 11" },
+              { value: "vulkan", label: "Vulkan" },
+            ]}
+          />
         </label>
         <label className="check">
           <input type="checkbox" checked={prefs.high_priority} onChange={(e) => put({ high_priority: e.target.checked })} />

@@ -41,11 +41,38 @@ const paths: Record<string, ReactNode> = {
   ),
   fixes: <path d="M14.5 5.5a4 4 0 0 0-4.7 5.1L4.6 15.8a1.6 1.6 0 0 0 2.3 2.3l5.2-5.2a4 4 0 0 0 5.1-4.7l-2.4 2.4-2-.5-.5-2 2.2-2.2Z" />,
   play: <path d="M8 5.5v13l10.5-6.5L8 5.5Z" />,
+  trend: <path d="M3 17l6-6 4 4 8-8M15 7h6v6" />,
   heart: <path d="M12 19.5 5.2 12.8a4.1 4.1 0 0 1 5.8-5.8l1 1 1-1a4.1 4.1 0 0 1 5.8 5.8L12 19.5Z" />,
+  down: <path d="M6 9.5 12 15.5 18 9.5" />,
+  up: <path d="M6 14.5 12 8.5l6 6" />,
+  left: <path d="M14.5 6 8.5 12l6 6" />,
+  right: <path d="M9.5 6l6 6-6 6" />,
+  check: <path d="M5.5 12.5 10 17l8.5-9.5" />,
+  close: <path d="M6 6l12 12M18 6 6 18" />,
+  sidebar: (
+    <>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="3" />
+      <path d="M9.5 4.5v15" />
+    </>
+  ),
+  layers: (
+    <>
+      <path d="M12 4 3.5 8.5 12 13l8.5-4.5L12 4Z" />
+      <path d="M3.5 12.5 12 17l8.5-4.5M3.5 16 12 20.5 20.5 16" />
+    </>
+  ),
+  bell: <path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 1.5h-15L6 16.5ZM10 20.5a2 2 0 0 0 4 0" />,
+  external: <path d="M9 5h10v10M19 5 8.5 15.5M5 9v10h10" />,
+  trash: <path d="M5 7h14M10 7V5h4v2M7 7l.8 12h8.4L17 7M10.5 11v5M13.5 11v5" />,
+  sort: <path d="M7 5v14M7 19l-3-3M7 19l3-3M17 19V5M17 5l-3 3M17 5l3 3" />,
 };
 
 export type IconName = keyof typeof paths;
 
-export default function Icon({ name }: { name: IconName }) {
-  return <svg {...base}>{paths[name]}</svg>;
+export default function Icon({ name, size = 22 }: { name: IconName; size?: number }) {
+  return (
+    <svg {...base} width={size} height={size}>
+      {paths[name]}
+    </svg>
+  );
 }

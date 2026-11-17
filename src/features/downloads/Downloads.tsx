@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import type { QueueRow } from "../../lib/api";
 import { formatBytes, humanizeError } from "../../lib/format";
+import EmptyState from "../../components/EmptyState";
 
 type Props = {
   rows: QueueRow[];
@@ -43,12 +44,11 @@ export default function Downloads({ rows, onPause, onResume, onCancel, onRemove,
       </header>
 
       {rows.length === 0 && (
-        <div className="empty">
-          <p>{t("downloads.empty")}</p>
+        <EmptyState title={t("downloads.emptyTitle")} text={t("downloads.empty")}>
           <button className="btn btn-primary" onClick={onGoCatalog}>
             {t("library.toCatalog")}
           </button>
-        </div>
+        </EmptyState>
       )}
 
       <ul className="dls">

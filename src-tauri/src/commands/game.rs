@@ -54,6 +54,26 @@ pub fn launch_game(app: AppHandle, state: State<'_, AppState>) -> Result<String,
     Ok(args.join(" "))
 }
 
+/// True while the Deadlock process is running. Used to warn that changes apply only after a restart.
+/// Looks at the process list by image name (Deadlock's executable is `project8.exe`); never touches the process.
+#[tauri::command]
+pub async fn game_running() -> bool {
+    tokio::task::spawn_blocking(|| {
+        #[cfg(windows)]
+        {
+            use std::os::windows::process::CommandExt;
+            const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+            if let Ok(out) = std::process::Command::new("tasklist").args(["/FO", "CSV", "/NH"]).creation_flags(CREATE_NO_WINDOW).output() {
+                let text = String::from_utf8_lossy(&out.stdout).to_lowercase();
+                return text.contains("\"project8.exe\"") || text.contains("\"deadlock.exe\"");
+            }
+        }
+        false
+    })
+    .await
+    .unwrap_or(false)
+}
+
 #[tauri::command]
 pub fn run_checks(state: State<'_, AppState>) -> Result<Vec<Finding>, String> {
     Ok(checks::run_checks(&game(&state)?))

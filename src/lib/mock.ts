@@ -108,13 +108,20 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
   await wait(120);
   const r = (v: unknown) => v as T;
   switch (cmd) {
+    case "game_running":
+      return r(false);
     case "detect_game":
       return r({ root: "D:\\SteamLibrary\\steamapps\\common\\Deadlock", addons_dir: "", gameinfo: "", build_id: "26546669" });
     case "list_categories":
+      if (args?.parent === 2) {
+        const heroes = ["Abrams", "Apollo", "Bebop", "Billy", "Calico", "Celeste", "Doorman", "Drifter", "Dynamo", "Grey Talon", "Haze", "Holliday", "Infernus", "Ivy", "Kelvin", "Lady Geist", "Lash", "McGinnis", "Mina", "Mirage", "Mo & Krill", "Paige", "Paradox", "Pocket", "Seven", "Shiv", "Sinclair", "Victor", "Vindicta", "Viscous", "Vyper", "Warden", "Wraith", "Yamato"];
+        return r(heroes.map((name, i) => ({ id: 100 + i, name, item_count: 200 - i * 4, has_children: false, icon: null })));
+      }
+      if (args?.parent === 1) return r([{ id: 201, name: "Crosshairs", item_count: 120, has_children: false, icon: null }, { id: 202, name: "Health bars", item_count: 90, has_children: false, icon: null }]);
       return r([
-        { id: 1, name: "HUD", item_count: 865, has_children: true },
-        { id: 2, name: "Skins", item_count: 2210, has_children: true },
-        { id: 3, name: "Quality of Life/Fixes", item_count: 140, has_children: false },
+        { id: 1, name: "HUD", item_count: 865, has_children: true, icon: null },
+        { id: 2, name: "Skins", item_count: 2210, has_children: true, icon: null },
+        { id: 3, name: "Quality of Life/Fixes", item_count: 140, has_children: false, icon: null },
       ]);
     case "search_mods":
       return r({ items: MODS, total: 6062, page: 1, has_more: true, cached_at: null });

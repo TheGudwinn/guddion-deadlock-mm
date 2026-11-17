@@ -11,7 +11,9 @@
     "downloads": "Downloads",
     "home": "Home",
     "performance": "Performance",
-    "fixes": "Fixes"
+    "fixes": "Fixes",
+    "collapse": "Collapse sidebar",
+    "expand": "Expand sidebar"
   },
   "game": {
     "found": "Game found",
@@ -22,7 +24,11 @@
     "starting": "Starting…",
     "playHint": "Start Deadlock through Steam with your launch options",
     "started": "Launch request sent to Steam. Options: {{args}}",
-    "startedPlain": "Launch request sent to Steam"
+    "startedPlain": "Launch request sent to Steam",
+    "running": "Game is running",
+    "runningHint": "Deadlock is running. Mod changes apply on its next start.",
+    "pending": "Applies on next start",
+    "pendingHint": "You changed mods. The game loads the changes the next time it starts."
   },
   "catalog": {
     "title": "Catalog",
@@ -42,7 +48,23 @@
     "next": "Next",
     "page": "Page {{n}}",
     "empty": "Nothing found. Change the query or clear the category.",
-    "retry": "Retry"
+    "retry": "Retry",
+    "hideInstalled": "Hide installed",
+    "reset": "Reset",
+    "category": "Category",
+    "errorTitle": "The catalog did not load",
+    "checkNetwork": "Check network",
+    "emptyTitle": "Nothing found",
+    "allInstalled": "Every mod on this page is already installed.",
+    "subs": "Heroes and sections",
+    "subsSearch": "Find a hero",
+    "subAll": "All",
+    "subsMore": "{{count}} more",
+    "subsLess": "Show less",
+    "loadingMore": "Loading",
+    "showMore": "Show more",
+    "end": "That is all: {{count}} shown",
+    "details": "Details"
   },
   "drawer": {
     "close": "Close",
@@ -60,7 +82,9 @@
     "screens": "Screenshots: {{count}}",
     "screen": "Screenshot",
     "prev": "Previous screenshot",
-    "next": "Next screenshot"
+    "next": "Next screenshot",
+    "slow": "The files are taking longer than usual to load.",
+    "retry": "Retry"
   },
   "library": {
     "title": "Library",
@@ -111,7 +135,7 @@
     "noMatch": "Nothing matches the search.",
     "noContent": "Contents not available (file missing or unreadable)",
     "showInside": "What is inside",
-    "hideInside": "Hide",
+    "hideInside": "Collapse",
     "heroHint": "Hero folder in the files",
     "peekKinds": "By type",
     "peekFiles": "Files ({{count}})",
@@ -144,7 +168,27 @@
     "sort_name": "By name",
     "sort_size": "By size",
     "sort_state": "Enabled first",
-    "resetFilters": "Reset filters"
+    "resetFilters": "Reset filters",
+    "showInsideHint": "Show which files the mod contains and what they change",
+    "order": "Load order",
+    "howItWorks": "How it works",
+    "select": "Select",
+    "whatsNew": "What's new",
+    "whatsNewHint": "Open the mod page on GameBanana",
+    "runningTitle": "The game is running",
+    "runningText": "You can change mods, but the game only picks the changes up after a restart.",
+    "emptyTitle": "Nothing here yet",
+    "noMatchTitle": "Nothing found",
+    "bulk": "Actions for the selection",
+    "picked": "Selected: {{count}}",
+    "bulkEnable": "Enable",
+    "bulkDisable": "Disable",
+    "bulkRemove": "Remove",
+    "bulkRemoveNone": "Mods from other managers cannot be removed here",
+    "pickAll": "Select all",
+    "pickNone": "Clear selection",
+    "bulkOn": "Mods enabled: {{count}}",
+    "bulkOff": "Mods disabled: {{count}}"
   },
   "action": {
     "install": "install “{{name}}”",
@@ -234,7 +278,11 @@
     "updated": "Profile “{{name}}” updated.",
     "imported": "Profile “{{name}}” imported. Its mods are not installed automatically.",
     "exported": "Profile saved to file.",
-    "exportTitle": "Save profile"
+    "exportTitle": "Save profile",
+    "switch": "Profile",
+    "pick": "Profile...",
+    "emptyTitle": "No profiles",
+    "toLibrary": "Go to the library"
   },
   "settings": {
     "title": "Settings",
@@ -376,7 +424,8 @@
       "done": "Installed",
       "failed": "Failed",
       "cancelled": "Cancelled"
-    }
+    },
+    "emptyTitle": "The queue is empty"
   },
   "window": {
     "minimize": "Minimize",
@@ -407,7 +456,13 @@
     "disable": "Disable",
     "enable": "Enable",
     "current": "Up to date",
-    "allMods": "All mods: {{count}}"
+    "allMods": "All mods: {{count}}",
+    "trendingIn": "Trending in",
+    "seeAll": "See all",
+    "prev": "Back",
+    "next": "Forward",
+    "heroes": "Heroes",
+    "pickHero": "Mods for {{name}}"
   },
   "status": {
     "mods_one": "Mods: {{count}}",
@@ -557,5 +612,120 @@
       "title": "Every mod is off",
       "text": "The game will start without mods."
     }
+  },
+  "appearance": {
+    "title": "Appearance",
+    "hint": "Applies at once and is remembered on this computer.",
+    "accent": "Accent colour",
+    "accentHint": "Buttons, highlights and the background glow.",
+    "hue": "Hue",
+    "hues": {
+      "violet": "Violet",
+      "blue": "Blue",
+      "teal": "Teal",
+      "green": "Green",
+      "amber": "Amber",
+      "coral": "Coral",
+      "rose": "Rose"
+    },
+    "glow": "Background glow",
+    "glowHint": "Live drifts slowly. Still does not move.",
+    "glowPower": "Glow strength",
+    "glowMode": {
+      "live": "Live",
+      "still": "Still",
+      "off": "Off"
+    },
+    "surface": "Background",
+    "surfaces": {
+      "night": "Night",
+      "graphite": "Graphite",
+      "black": "Black"
+    },
+    "motion": "Animations",
+    "motionHint": "Calm halves the speed. The system \"reduce motion\" setting is always respected.",
+    "motions": {
+      "full": "Full",
+      "calm": "Calm",
+      "off": "Off"
+    },
+    "radius": "Corners",
+    "radii": {
+      "sharp": "Sharp",
+      "soft": "Soft",
+      "round": "Round"
+    },
+    "density": "Density",
+    "densities": {
+      "compact": "Compact",
+      "normal": "Normal",
+      "roomy": "Roomy"
+    },
+    "cards": "Card size",
+    "cardsHint": "In the catalog and the library.",
+    "cardSizes": {
+      "s": "Small",
+      "m": "Medium",
+      "l": "Large"
+    },
+    "rail": "Sidebar",
+    "rails": {
+      "open": "With labels",
+      "closed": "Icons only"
+    },
+    "blur": "Glass blur",
+    "blurHint": "Turn off if the interface feels slow.",
+    "on": "On",
+    "off": "Off",
+    "home": "Home blocks",
+    "homeHint": "What the home page shows.",
+    "homeBlocks": {
+      "hero": "Popular now",
+      "popular": "Popular",
+      "mine": "My mods",
+      "stats": "Your library"
+    },
+    "reset": "Reset appearance",
+    "wall": "Background picture",
+    "wallHint": "Your own image behind the interface. Kept on this computer.",
+    "wallErr": "Could not read that file. Pick a PNG, JPG or WebP image.",
+    "wallPick": "Choose picture",
+    "wallChange": "Replace",
+    "wallRemove": "Remove",
+    "wallDim": "Picture dimming",
+    "wallBlur": "Picture blur"
+  },
+  "confirm": {
+    "cancel": "Cancel",
+    "applyTitle": "Apply profile \"{{name}}\"?",
+    "applyText": "The profile switches mods in the library. No files are deleted, and it can be undone.",
+    "applyOn": "Mods to enable: {{count}}",
+    "applyOff": "All other installed mods will be disabled",
+    "applyMissing": "Not installed, will be skipped: {{count}}",
+    "deleteProfileTitle": "Delete profile \"{{name}}\"?",
+    "deleteProfileText": "Only the saved set is deleted. Installed mods stay.",
+    "removeTitle": "Remove \"{{name}}\"?",
+    "removeManyTitle": "Remove {{count}} mods?",
+    "removeText": "The mod files are deleted from the game folder. The last action can be undone in the library.",
+    "andMore": "...and {{count}} more"
+  },
+  "history": {
+    "title": "Events",
+    "clear": "Clear",
+    "empty": "Nothing has happened yet."
+  },
+  "onboarding": {
+    "title": "Getting started",
+    "progress": "{{done}} of {{total}} done",
+    "hide": "Hide",
+    "game": "Find the game",
+    "gameOk": "Deadlock is found, you can go on.",
+    "gameNo": "The launcher did not find Deadlock in your Steam libraries. Set the game folder by hand.",
+    "gamePick": "Set folder",
+    "mod": "Install your first mod",
+    "modText": "Open the catalog, pick a mod and press Install.",
+    "modGo": "Open catalog",
+    "play": "Start the game",
+    "playText": "The game starts through Steam with your options. Mods are picked up by themselves."
   }
 }

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { Profile } from "../../lib/api";
+import EmptyState from "../../components/EmptyState";
 
 type Props = {
   profiles: Profile[] | null;
@@ -12,13 +13,13 @@ type Props = {
   onDelete: (id: number) => void;
   onExport: (p: Profile) => void;
   onImport: () => void;
+  onGoLibrary: () => void;
 };
 
-export default function Profiles({ profiles, busy, onCreate, onApply, onUpdate, onRename, onDelete, onExport, onImport }: Props) {
+export default function Profiles({ profiles, busy, onCreate, onApply, onUpdate, onRename, onDelete, onExport, onImport, onGoLibrary }: Props) {
   const { t } = useTranslation();
   const [name, setName] = useState("");
   const [editing, setEditing] = useState<{ id: number; value: string } | null>(null);
-  const [confirm, setConfirm] = useState<number | null>(null);
 
   return (
     <section className="view">
@@ -44,7 +45,16 @@ export default function Profiles({ profiles, busy, onCreate, onApply, onUpdate, 
         </form>
       </header>
 
-      {profiles && profiles.length === 0 && <p className="empty">{t("profiles.empty")}</p>}
+      {profiles && profiles.length === 0 && (
+        <EmptyState title={t("profiles.emptyTitle")} text={t("profiles.empty")}>
+          <button className="btn btn-primary" onClick={onGoLibrary}>
+            {t("profiles.toLibrary")}
+          </button>
+          <button className="btn" disabled={busy} onClick={onImport}>
+            {t("profiles.import")}
+          </button>
+        </EmptyState>
+      )}
 
       <ul className="profiles">
         {(profiles ?? []).map((p) => {
@@ -107,27 +117,9 @@ export default function Profiles({ profiles, busy, onCreate, onApply, onUpdate, 
                 <button className="btn btn-quiet" disabled={busy} onClick={() => setEditing({ id: p.id, value: p.name })}>
                   {t("profiles.rename")}
                 </button>
-                {confirm === p.id ? (
-                  <>
-                    <button
-                      className="btn btn-danger"
-                      disabled={busy}
-                      onClick={() => {
-                        setConfirm(null);
-                        onDelete(p.id);
-                      }}
-                    >
-                      {t("profiles.removeYes")}
-                    </button>
-                    <button className="btn btn-quiet" onClick={() => setConfirm(null)}>
-                      {t("profiles.cancel")}
-                    </button>
-                  </>
-                ) : (
-                  <button className="btn btn-quiet" disabled={busy} onClick={() => setConfirm(p.id)}>
-                    {t("profiles.remove")}
-                  </button>
-                )}
+                <button className="btn btn-quiet" disabled={busy} onClick={() => onDelete(p.id)}>
+                  {t("profiles.remove")}
+                </button>
               </div>
             </li>
           );

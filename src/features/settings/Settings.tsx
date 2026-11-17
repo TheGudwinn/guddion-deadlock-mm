@@ -4,6 +4,8 @@ import i18n from "../../i18n";
 import { call, isTauri, type GameInstall, type HostReport, type ProxyMode, type SettingsView, type UpdateInfo } from "../../lib/api";
 import { humanizeError } from "../../lib/format";
 import GameOptions from "./GameOptions";
+import Appearance from "./Appearance";
+import Select from "../../components/Select";
 
 type Props = {
   game: GameInstall | null | undefined;
@@ -165,12 +167,17 @@ export default function Settings({ game, onSaved, onCheckUpdate }: Props) {
         <p className="view-sub">{t("settings.subtitle")}</p>
       </header>
 
+      <div className="settings">
+        <Appearance />
+      </div>
+
       <form className="settings" onSubmit={save}>
         <fieldset className="block">
           <legend>{t("settings.game.title")}</legend>
           <p className="note">
             {game ? t("settings.game.current", { path: game.root }) : t("settings.game.none")}
           </p>
+          {game?.build_id && <p className="note">{t("game.build", { id: game.build_id })}</p>}
           <div className="row">
             <input
               className="field grow mono"
@@ -210,11 +217,16 @@ export default function Settings({ game, onSaved, onCheckUpdate }: Props) {
             <div className="grid-fields">
               <label>
                 <span>{t("settings.proxy.kind")}</span>
-                <select className="field" value={form.kind} onChange={(e) => set("kind", e.target.value as Form["kind"])}>
-                  <option value="http">HTTP</option>
-                  <option value="https">HTTPS</option>
-                  <option value="socks5">SOCKS5</option>
-                </select>
+                <Select
+                  label={t("settings.proxy.kind")}
+                  value={form.kind}
+                  onChange={(v) => set("kind", v as Form["kind"])}
+                  options={[
+                    { value: "http", label: "HTTP" },
+                    { value: "https", label: "HTTPS" },
+                    { value: "socks5", label: "SOCKS5" },
+                  ]}
+                />
               </label>
               <label className="span-2">
                 <span>{t("settings.proxy.host")}</span>

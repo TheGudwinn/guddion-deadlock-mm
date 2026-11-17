@@ -7,6 +7,10 @@ import { contentForFiles, mainKinds } from "../../lib/content";
 import { formatBytes } from "../../lib/format";
 import { camStateOf, isFixable, shortName, type CamState, type Compat } from "../../lib/compat";
 import StateMark from "../../components/StateMark";
+import Select from "../../components/Select";
+import Icon from "../../components/Icons";
+import EmptyState from "../../components/EmptyState";
+import { openExternal } from "../../lib/open";
 import { Tags, Peek } from "./ContentView";
 
 type Props = {
@@ -33,6 +37,12 @@ type Props = {
   /** Camera check of the hero models inside the mods. */
   compat: Compat;
   gameFound: boolean;
+  /** The game is running now: changes apply on its next start. */
+  gameRunning: boolean;
+  /** Text sent from the top-bar search while this page is open. */
+  search: { text: string; n: number };
+  onBulkToggle: (ids: number[], groups: ForeignGroup[], enabled: boolean) => void;
+  onBulkRemove: (ids: number[]) => void;
 };
 
 /** One tile of the library, whoever installed the mod. */
@@ -80,9 +90,9 @@ function Thumb({ url }: { url: string }) {
   );
 }
 
-export default function Library({ mods, groups, known, contents, last, busy, onToggle, onToggleForeign, onRemove, onUndo, onReorder, gameBuild, report, checking, onCheckUpdates, onUpdate, onGoCatalog, compat, gameFound }: Props) {
+export default function Library({ mods, groups, known, contents, last, busy, onToggle, onToggleForeign, onRemove, onUndo, onReorder, gameBuild, report, checking, onCheckUpdates, onUpdate, onGoCatalog, compat, gameFound, gameRunning, search, onBulkToggle, onBulkRemove }: Props) {
   const { t } = useTranslation();
-  const [confirm, setConfirm] = useState<string | null>(null);
+  const [picked, setPicked] = useState<Set<string>>(new Set()); // tiles selected for a bulk action
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<Status>("on");
   const [kind, setKind] = useState("");
@@ -90,6 +100,17 @@ export default function Library({ mods, groups, known, contents, last, busy, onT
   const [onlyUpdates, setOnlyUpdates] = useState(false);
   const [sort, setSort] = useState<Sort>("name");
   const [open, setOpen] = useState<Set<string>>(new Set()); // tiles whose "what is inside" panel is expanded
+
+  useEffect(() => {
+    if (search.n > 0) setQuery(search.text);
+  }, [search.n, search.text]);
+
+  const pick = (key: string) =>
+    setPicked((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
 
   const toggleOpen = (key: string) =>
     setOpen((prev) => {
@@ -202,6 +223,13 @@ export default function Library({ mods, groups, known, contents, last, busy, onT
     onReorder(ids);
   };
 
+  const pickedItems = items.filter((i) => picked.has(i.key));
+  const pickedOwn = pickedItems.flatMap((i) => (i.own ? [i.own.id] : []));
+  const bulk = (enabled: boolean) => {
+    onBulkToggle(pickedOwn.length ? pickedItems.filter((i) => i.own && (enabled ? i.state !== "on" : i.state !== "off")).map((i) => i.own!.id) : [], pickedItems.filter((i) => i.group && (enabled ? i.state !== "on" : i.state !== "off")).map((i) => i.group!), enabled);
+    setPicked(new Set());
+  };
+
   const reset = () => {
     setQuery("");
     setStatus("on");
@@ -227,80 +255,83 @@ export default function Library({ mods, groups, known, contents, last, busy, onT
       <li key={it.key} className={`tile ${it.state === "off" ? "tile-off" : ""} ${expanded ? "tile-wide" : ""}`}>
         <div className="tile-cover">
           {it.thumb ? <Thumb url={it.thumb} /> : <div className="tile-img tile-img-empty" aria-hidden>{it.hero?.[0] ?? it.title[0]}</div>}
+          <label className={`tile-pick ${picked.size > 0 ? "tile-pick-shown" : ""}`} title={t("library.select")}>
+            <input type="checkbox" checked={picked.has(it.key)} aria-label={`${t("library.select")}: ${it.title}`} onChange={() => pick(it.key)} />
+          </label>
           <div className="tile-mark">
             <StateMark state={it.state} label={label} disabled={busy || !!it.error} onClick={toggle} />
           </div>
           {m && <span className="tile-slot">{m.slot != null ? String(m.slot).padStart(2, "0") : "??"}</span>}
-          {it.update && <span className="tile-badge">{t("library.updateAvailable", { version: it.update.latest_version ? ` ${it.update.latest_version}` : "" })}</span>}
-          {it.cam && (
-            <span className={`tile-cam tile-cam-${it.cam.state} ${it.update ? "tile-cam-up" : ""}`} title={[t(`library.cam_${it.cam.state}_text`), ...it.cam.models].join(String.fromCharCode(10))}>
-              {t(`library.cam_${it.cam.state}`)}
-            </span>
-          )}
         </div>
         <div className="tile-body">
           <div className="tile-title" title={it.title}>
             {it.title}
           </div>
-          <div className="slot-meta">{it.error ? <span className="slot-error">{t("library.unreadable")}: {it.error}</span> : it.sub}</div>
-          {it.content ? <Tags content={it.content} skipHero={!it.thumb && !!it.hero && !!g && !g.id} /> : <div className="slot-meta">{t("library.noContent")}</div>}
+          <div className="tile-meta">{it.error ? <span className="slot-error">{t("library.unreadable")}: {it.error}</span> : it.sub}</div>
+          <div className="tile-flags">
+            {it.update && <span className="flag flag-update">{t("library.updateAvailable", { version: it.update.latest_version ? ` ${it.update.latest_version}` : "" })}</span>}
+            {it.update && m?.remote_id && (
+              <button className="flag flag-link" onClick={() => void openExternal(`https://gamebanana.com/mods/${m.remote_id}`)} title={t("library.whatsNewHint")}>
+                {t("library.whatsNew")}
+                <Icon name="external" size={12} />
+              </button>
+            )}
+            {it.cam && (
+              <span className={`flag flag-cam-${it.cam.state}`} title={[t(`library.cam_${it.cam.state}_text`), ...it.cam.models].join(String.fromCharCode(10))}>
+                {t(`library.cam_${it.cam.state}`)}
+              </span>
+            )}
+          </div>
+          <div className="tile-tags">{it.content ? <Tags content={it.content} skipHero={!it.thumb && !!it.hero && !!g && !g.id} /> : <div className="tile-meta">{t("library.noContent")}</div>}</div>
         </div>
         <div className="tile-actions">
-          {it.content && (
-            <button className="btn-icon btn-chevron" aria-expanded={expanded} aria-label={`${t("library.showInside")}: ${it.title}`} title={t("library.showInside")} onClick={() => toggleOpen(it.key)}>
-              ▾
+          {it.content ? (
+            <button className="btn btn-sm btn-ghost" aria-expanded={expanded} title={t("library.showInsideHint")} onClick={() => toggleOpen(it.key)}>
+              <Icon name="layers" size={16} />
+              {expanded ? t("library.hideInside") : t("library.showInside")}
             </button>
+          ) : (
+            <span />
           )}
-          {m && reorderable && own.length > 1 && (
-            <span className="mover">
-              <button className="btn-icon" disabled={busy || i === 0} aria-label={`${t("library.moveUp")}: ${m.name}`} title={t("library.moveUp")} onClick={() => move(i, i - 1)}>
-                ◀
-              </button>
-              <button className="btn-icon" disabled={busy || i === own.length - 1} aria-label={`${t("library.moveDown")}: ${m.name}`} title={t("library.moveDown")} onClick={() => move(i, i + 1)}>
-                ▶
-              </button>
-            </span>
-          )}
-          {m && it.update && (
-            <button className="btn btn-primary" disabled={busy} onClick={() => onUpdate(m.id)}>
-              {t("library.update")}
-            </button>
-          )}
-          {m &&
-            (confirm === it.key ? (
-              <>
-                <button
-                  className="btn btn-danger"
-                  disabled={busy}
-                  onClick={() => {
-                    setConfirm(null);
-                    onRemove(m.id);
-                  }}
-                >
-                  {t("library.removeYes")}
+          <div className="tile-actions-end">
+            {m && reorderable && own.length > 1 && (
+              <span className="mover" role="group" aria-label={t("library.order")}>
+                <button className="btn-icon" disabled={busy || i === 0} aria-label={`${t("library.moveUp")}: ${m.name}`} title={t("library.moveUp")} onClick={() => move(i, i - 1)}>
+                  <Icon name="left" size={16} />
                 </button>
-                <button className="btn btn-quiet" onClick={() => setConfirm(null)}>
-                  {t("library.cancel")}
+                <button className="btn-icon" disabled={busy || i === own.length - 1} aria-label={`${t("library.moveDown")}: ${m.name}`} title={t("library.moveDown")} onClick={() => move(i, i + 1)}>
+                  <Icon name="right" size={16} />
                 </button>
-              </>
-            ) : (
-              <button className="btn btn-quiet" disabled={busy} onClick={() => setConfirm(it.key)}>
-                {t("library.remove")}
+              </span>
+            )}
+            {m && it.update && (
+              <button className="btn btn-sm btn-primary" disabled={busy} onClick={() => onUpdate(m.id)}>
+                {t("library.update")}
               </button>
-            ))}
+            )}
+            {m && (
+              <button className="btn-icon btn-icon-danger" disabled={busy} aria-label={`${t("library.remove")}: ${m.name}`} title={t("library.remove")} onClick={() => onRemove(m.id)}>
+                <Icon name="trash" size={16} />
+              </button>
+            )}
+          </div>
         </div>
-        {expanded && g && g.files.length > 1 && (
-          <ul className="group-files">
-            {g.files.map((f) => (
-              <li key={f.name}>
-                <span className={`dot ${f.enabled ? "dot-on" : "dot-off"}`} aria-hidden />
-                <span>{f.name}</span>
-                <span>{formatBytes(f.size)}</span>
-              </li>
-            ))}
-          </ul>
+        {expanded && (
+          <div className="tile-inside">
+            {g && g.files.length > 1 && (
+              <ul className="group-files">
+                {g.files.map((f) => (
+                  <li key={f.name}>
+                    <span className={`dot ${f.enabled ? "dot-on" : "dot-off"}`} aria-hidden />
+                    <span>{f.name}</span>
+                    <span>{formatBytes(f.size)}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {it.content && <Peek content={it.content} />}
+          </div>
         )}
-        {it.content && expanded && <Peek content={it.content} />}
       </li>
     );
   };
@@ -329,8 +360,13 @@ export default function Library({ mods, groups, known, contents, last, busy, onT
           </div>
         </div>
         <p className="view-sub">{t("library.subtitle")}</p>
-        {groups.length > 0 && <p className="note">{t("library.foreignWarn")}</p>}
-        {own.length > 1 && <p className="note">{t("library.orderNote")}</p>}
+        {(groups.length > 0 || own.length > 1) && (
+          <details className="howto">
+            <summary>{t("library.howItWorks")}</summary>
+            {groups.length > 0 && <p className="note">{t("library.foreignWarn")}</p>}
+            {own.length > 1 && <p className="note">{t("library.orderNote")}</p>}
+          </details>
+        )}
         {report && !checking && (
           <p className="note">
             {report.updates.length > 0 ? t("library.updatesFound", { count: report.updates.length }) : t("library.upToDate", { count: report.checked })}
@@ -361,6 +397,12 @@ export default function Library({ mods, groups, known, contents, last, busy, onT
             </div>
           </div>
         )}
+        {gameRunning && (
+          <div className="notice" role="status">
+            <b>{t("library.runningTitle")}</b>
+            <span>{t("library.runningText")}</span>
+          </div>
+        )}
         {stale.length > 0 && (
           <div className="notice" role="note">
             <b>{t("library.patchTitle")}</b>
@@ -370,16 +412,15 @@ export default function Library({ mods, groups, known, contents, last, busy, onT
       </header>
 
       {mods && total === 0 && (
-        <div className="empty">
-          <p>{t("library.empty")}</p>
+        <EmptyState title={t("library.emptyTitle")} text={t("library.empty")}>
           <button className="btn btn-primary" onClick={onGoCatalog}>
             {t("library.toCatalog")}
           </button>
-        </div>
+        </EmptyState>
       )}
 
       {total > 0 && (
-        <>
+        <div className="filterbar">
           <div className="lib-tools">
             <input className="field search" type="search" value={query} placeholder={t("library.search")} aria-label={t("library.search")} onChange={(e) => setQuery(e.target.value)} />
             <span className="lib-totals">{t("library.totals", { count: totals.count, enabled: totals.enabled, size: formatBytes(totals.bytes) })}</span>
@@ -392,47 +433,56 @@ export default function Library({ mods, groups, known, contents, last, busy, onT
                 </button>
               ))}
             </div>
-            <select className="field" value={hero} aria-label={t("library.filterHero")} onChange={(e) => setHero(e.target.value)}>
-              <option value="">{t("library.allHeroes")}</option>
-              {heroes.map((h) => (
-                <option key={h} value={h}>
-                  {h}
-                </option>
-              ))}
-            </select>
-            <select className="field" value={kind} aria-label={t("library.filterKind")} onChange={(e) => setKind(e.target.value)}>
-              <option value="">{t("library.allKinds")}</option>
-              {kinds.map((k) => (
-                <option key={k} value={k}>
-                  {t(`kind.${k}`)}
-                </option>
-              ))}
-            </select>
+            <Select className="select-filter" label={t("library.filterHero")} value={hero} onChange={setHero} options={[{ value: "", label: t("library.allHeroes") }, ...heroes.map((h) => ({ value: h, label: h }))]} />
+            <Select className="select-filter" label={t("library.filterKind")} value={kind} onChange={setKind} options={[{ value: "", label: t("library.allKinds") }, ...kinds.map((k) => ({ value: k, label: t(`kind.${k}`) }))]} />
             {report && report.updates.length > 0 && (
               <label className="check">
                 <input type="checkbox" checked={onlyUpdates} onChange={(e) => setOnlyUpdates(e.target.checked)} />
-                {t("library.onlyUpdates")}
+                <span>{t("library.onlyUpdates")}</span>
               </label>
             )}
-            <select className="field" value={sort} aria-label={t("library.sort")} onChange={(e) => setSort(e.target.value as Sort)}>
-              {(["load", "name", "size", "state"] as const).map((s) => (
-                <option key={s} value={s}>
-                  {t(`library.sort_${s}`)}
-                </option>
-              ))}
-            </select>
+            <Select className="select-filter select-sort" label={t("library.sort")} value={sort} onChange={(v) => setSort(v as Sort)} options={(["load", "name", "size", "state"] as const).map((v) => ({ value: v, label: t(`library.sort_${v}`) }))} />
             {filtered && (
               <button className="btn btn-quiet" onClick={reset}>
                 {t("library.resetFilters")}
               </button>
             )}
           </div>
-        </>
+        </div>
       )}
 
-      {total > 0 && visible.length === 0 && <p className="note">{t("library.noMatch")}</p>}
+      {total > 0 && visible.length === 0 && (
+        <EmptyState title={t("library.noMatchTitle")} text={t("library.noMatch")}>
+          <button className="btn btn-primary" onClick={reset}>
+            {t("library.resetFilters")}
+          </button>
+        </EmptyState>
+      )}
 
       {visible.length > 0 && <ul className="tiles">{visible.map(renderTile)}</ul>}
+
+      {picked.size > 0 && (
+        <div className="bulkbar" role="region" aria-label={t("library.bulk")}>
+          <span className="bulk-count">{t("library.picked", { count: picked.size })}</span>
+          <div className="bulk-actions">
+            <button className="btn btn-sm" disabled={busy} onClick={() => bulk(true)}>
+              {t("library.bulkEnable")}
+            </button>
+            <button className="btn btn-sm" disabled={busy} onClick={() => bulk(false)}>
+              {t("library.bulkDisable")}
+            </button>
+            <button className="btn btn-sm btn-danger" disabled={busy || pickedOwn.length === 0} title={pickedOwn.length === 0 ? t("library.bulkRemoveNone") : undefined} onClick={() => onBulkRemove(pickedOwn)}>
+              {t("library.bulkRemove")}
+            </button>
+            <button className="btn btn-sm btn-quiet" onClick={() => setPicked(new Set(visible.map((i) => i.key)))}>
+              {t("library.pickAll")}
+            </button>
+            <button className="btn btn-sm btn-quiet" onClick={() => setPicked(new Set())}>
+              {t("library.pickNone")}
+            </button>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

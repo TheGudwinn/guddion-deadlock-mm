@@ -21,6 +21,7 @@ import {
   type UpdateReport,
 } from "./lib/api";
 import { humanizeError } from "./lib/format";
+import { useCompat } from "./lib/compat";
 import Activity, { type ActivityState } from "./components/Activity";
 import UpdateBanner from "./components/UpdateBanner";
 import WindowControls from "./components/WindowControls";
@@ -60,6 +61,7 @@ export default function App() {
   const [maximized, setMaximized] = useState(false);
   const [queue, setQueue] = useState<QueueRow[]>([]);
   const prevStates = useRef<Map<number, string>>(new Map());
+  const compat = useCompat();
   const [modReport, setModReport] = useState<UpdateReport | null>(null);
   const [checkingMods, setCheckingMods] = useState(false);
   const autoChecked = useRef(false);
@@ -424,6 +426,7 @@ export default function App() {
         ) : view === "fixes" ? (
           <Fixes
             game={game}
+            compat={compat}
             onChanged={() => {
               void refresh();
             }}
@@ -459,6 +462,8 @@ export default function App() {
             onCheckUpdates={() => void checkMods(true)}
             onUpdate={(id) => void updateMod(id)}
             onGoCatalog={() => setView("catalog")}
+            compat={compat}
+            gameFound={!!game}
           />
         )}
       </main>

@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import type { AddonContent, Content, InstalledMod, LastAction, ModUpdate, UpdateReport } from "../../lib/api";
 import { groupState, groupTitle, type ForeignGroup, type GroupState } from "../../lib/foreign";
 import { smallThumb, type CachedMod } from "../../lib/modcache";
 import { contentForFiles, mainKinds } from "../../lib/content";
 import { formatBytes } from "../../lib/format";
+import { camStateOf, isFixable, shortName, type CamState, type Compat } from "../../lib/compat";
 import StateMark from "../../components/StateMark";
 import { Tags, Peek } from "./ContentView";
 
@@ -29,6 +30,9 @@ type Props = {
   onCheckUpdates: () => void;
   onUpdate: (id: number) => void;
   onGoCatalog: () => void;
+  /** Camera check of the hero models inside the mods. */
+  compat: Compat;
+  gameFound: boolean;
 };
 
 /** One tile of the library, whoever installed the mod. */
@@ -45,7 +49,11 @@ type Item = {
   own?: InstalledMod;
   group?: ForeignGroup;
   update?: ModUpdate;
+  /** Camera check: needs the repair, or has been repaired. */
+  cam?: CamState;
   error?: string;
+  /** The catalog (GameBanana) knows this mod. */
+  found: boolean;
   /** Position in the load order for our own mods. */
   order: number;
 };
@@ -53,32 +61,34 @@ type Item = {
 type Status = "all" | "on" | "off";
 type Sort = "load" | "name" | "size" | "state";
 
-/** Catalog thumbnail, small size first (the big one is only a fallback). Defined here, not inside the page, so tiles keep their image when the list re-renders. */
+/** Catalog thumbnail at the size the catalog gives (a tile is wider than the 100 px preview). Defined here, not inside the page, so tiles keep their image when the list re-renders. */
 function Thumb({ url }: { url: string }) {
   return (
     <img
       className="tile-img"
-      src={smallThumb(url)}
+      src={url}
       alt=""
       loading="lazy"
       decoding="async"
       onError={(e) => {
+        // the full-size picture is the default; the small one is only a fallback
         const img = e.currentTarget;
-        if (img.src !== url) img.src = url;
+        const small = smallThumb(url);
+        if (img.src !== small) img.src = small;
       }}
     />
   );
 }
 
-export default function Library({ mods, groups, known, contents, last, busy, onToggle, onToggleForeign, onRemove, onUndo, onReorder, gameBuild, report, checking, onCheckUpdates, onUpdate, onGoCatalog }: Props) {
+export default function Library({ mods, groups, known, contents, last, busy, onToggle, onToggleForeign, onRemove, onUndo, onReorder, gameBuild, report, checking, onCheckUpdates, onUpdate, onGoCatalog, compat, gameFound }: Props) {
   const { t } = useTranslation();
   const [confirm, setConfirm] = useState<string | null>(null);
   const [query, setQuery] = useState("");
-  const [status, setStatus] = useState<Status>("all");
+  const [status, setStatus] = useState<Status>("on");
   const [kind, setKind] = useState("");
   const [hero, setHero] = useState("");
   const [onlyUpdates, setOnlyUpdates] = useState(false);
-  const [sort, setSort] = useState<Sort>("load");
+  const [sort, setSort] = useState<Sort>("name");
   const [open, setOpen] = useState<Set<string>>(new Set()); // tiles whose "what is inside" panel is expanded
 
   const toggleOpen = (key: string) =>
@@ -89,6 +99,12 @@ export default function Library({ mods, groups, known, contents, last, busy, onT
     });
 
   const own = mods ?? [];
+  // the check is cheap to repeat and reads the mod files themselves, so it follows what is installed
+  const filesKey = useMemo(() => [...own.flatMap((m) => m.files.map((f) => `${f.name}:${f.enabled}`)), ...groups.flatMap((g) => g.files.map((f) => `${f.name}:${f.enabled}`))].sort().join("|"), [own, groups]);
+  const { scan: scanCompat } = compat;
+  useEffect(() => {
+    if (gameFound && mods && filesKey) void scanCompat();
+  }, [gameFound, mods, filesKey, scanCompat]);
   const updateFor = (id: number): ModUpdate | undefined => report?.updates.find((u) => u.mod_id === id);
 
   const items: Item[] = useMemo(() => {
@@ -107,8 +123,10 @@ export default function Library({ mods, groups, known, contents, last, busy, onT
         size,
         hero: c?.heroes[0]?.name ?? null,
         kinds: c ? mainKinds(c, 6) : [],
+        found: !!cat,
         own: m,
         update: updateFor(m.id),
+        cam: camStateOf(compat.report, m.files.map((f) => f.name)) ?? undefined,
         order: i,
       });
     });
@@ -126,14 +144,16 @@ export default function Library({ mods, groups, known, contents, last, busy, onT
         size: g.size,
         hero: g.content?.heroes[0]?.name ?? null,
         kinds: g.content ? mainKinds(g.content, 6) : [],
+        found: !!mod,
         group: g,
         error: err ?? undefined,
+        cam: camStateOf(compat.report, g.files.map((f) => f.name)) ?? undefined,
         order: own.length + i,
       });
     });
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- updateFor only reads `report`
-  }, [own, groups, known, contents, report, t]);
+  }, [own, groups, known, contents, report, compat.report, t]);
 
   const heroes = useMemo(() => [...new Set(items.map((i) => i.hero).filter((h): h is string => !!h))].sort((a, b) => a.localeCompare(b)), [items]);
   const kinds = useMemo(() => [...new Set(items.flatMap((i) => i.kinds))].sort(), [items]);
@@ -152,21 +172,26 @@ export default function Library({ mods, groups, known, contents, last, busy, onT
         (!hero || i.hero === hero) &&
         (!onlyUpdates || !!i.update),
     );
-    const byName = (a: Item, b: Item) => a.title.localeCompare(b.title);
+    // mods the catalog does not know go after the ones it knows
+    const known1 = (a: Item, b: Item) => Number(b.found) - Number(a.found);
+    const byName = (a: Item, b: Item) => known1(a, b) || a.title.localeCompare(b.title);
     if (sort === "name") out.sort(byName);
-    else if (sort === "size") out.sort((a, b) => b.size - a.size || byName(a, b));
+    else if (sort === "size") out.sort((a, b) => known1(a, b) || b.size - a.size || byName(a, b));
     else if (sort === "state") out.sort((a, b) => Number(b.state !== "off") - Number(a.state !== "off") || byName(a, b));
     else out.sort((a, b) => a.order - b.order);
     return out;
   }, [items, q, status, kind, hero, onlyUpdates, sort, t]);
 
-  const filtered = !!q || status !== "all" || !!kind || !!hero || onlyUpdates;
+  const filtered = !!q || status !== "on" || !!kind || !!hero || onlyUpdates;
   const reorderable = !filtered && sort === "load";
   const total = items.length;
   const totals = useMemo(
     () => ({ count: items.length, enabled: items.filter((i) => i.state !== "off").length, bytes: items.reduce((s, i) => s + i.size, 0) }),
     [items],
   );
+  // mods that still need the camera repair, and the package that is written but not switched on
+  const camMods = new Set((compat.report?.findings ?? []).filter((f) => f.kind.startsWith("camera_")).flatMap((f) => f.mods.map(shortName)));
+  const canRepair = compat.report?.findings.some(isFixable) ?? false;
   const stale = gameBuild ? own.filter((m) => m.game_build && m.game_build !== gameBuild) : [];
 
   const move = (from: number, to: number) => {
@@ -179,7 +204,7 @@ export default function Library({ mods, groups, known, contents, last, busy, onT
 
   const reset = () => {
     setQuery("");
-    setStatus("all");
+    setStatus("on");
     setKind("");
     setHero("");
     setOnlyUpdates(false);
@@ -207,6 +232,11 @@ export default function Library({ mods, groups, known, contents, last, busy, onT
           </div>
           {m && <span className="tile-slot">{m.slot != null ? String(m.slot).padStart(2, "0") : "??"}</span>}
           {it.update && <span className="tile-badge">{t("library.updateAvailable", { version: it.update.latest_version ? ` ${it.update.latest_version}` : "" })}</span>}
+          {it.cam && (
+            <span className={`tile-cam tile-cam-${it.cam.state} ${it.update ? "tile-cam-up" : ""}`} title={[t(`library.cam_${it.cam.state}_text`), ...it.cam.models].join(String.fromCharCode(10))}>
+              {t(`library.cam_${it.cam.state}`)}
+            </span>
+          )}
         </div>
         <div className="tile-body">
           <div className="tile-title" title={it.title}>
@@ -281,6 +311,11 @@ export default function Library({ mods, groups, known, contents, last, busy, onT
         <div className="view-title-row">
           <h1 className="view-title">{t("library.title")}</h1>
           <div className="head-actions">
+            {total > 0 && gameFound && (
+              <button className="btn" disabled={busy || compat.scanning || compat.repairing} onClick={() => void compat.scan()}>
+                {compat.scanning ? t("fixes.compat.scanning") : t("library.checkCameras")}
+              </button>
+            )}
             {own.length > 0 && (
               <button className="btn" disabled={busy || checking} onClick={onCheckUpdates}>
                 {checking ? t("library.checking") : t("library.checkUpdates")}
@@ -302,6 +337,29 @@ export default function Library({ mods, groups, known, contents, last, busy, onT
             {report.failed > 0 && ` ${t("library.checkFailed", { count: report.failed })}`}
             {report.offline && ` ${t("library.checkOffline")}`}
           </p>
+        )}
+        {compat.error && <p className="form-error">{compat.error}</p>}
+        {compat.done && (
+          <div className="notice ok-notice" role="status">
+            <b>{t("fixes.compat.repaired", { count: compat.done.fixed.length })}</b>
+            {compat.done.skipped.map(([m, why]) => (
+              <span key={m}>
+                {m}: {why}
+              </span>
+            ))}
+            <span>{t("library.camRestart")}</span>
+          </div>
+        )}
+        {canRepair && (
+          <div className="notice" role="note">
+            <b>{camMods.size > 0 ? t("library.camNeedsTitle", { count: camMods.size }) : t("fixes.compat.package_inactive")}</b>
+            <span>{camMods.size > 0 ? t("library.camNeedsText") : t("fixes.compat.package_inactive_text")}</span>
+            <div className="row">
+              <button className="btn btn-primary" disabled={busy || compat.scanning || compat.repairing} onClick={() => void compat.repair()}>
+                {compat.repairing ? "…" : t("fixes.compat.repair")}
+              </button>
+            </div>
+          </div>
         )}
         {stale.length > 0 && (
           <div className="notice" role="note">

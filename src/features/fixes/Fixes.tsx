@@ -2,61 +2,29 @@ import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { call, type Finding } from "../../lib/api";
 import { humanizeError } from "../../lib/format";
+import { isFixable, type Compat } from "../../lib/compat";
 
 type Props = {
   game: unknown;
+  compat: Compat;
   /** Called after a fix changed game files, so the library and counters are read again. */
   onChanged: () => void;
 };
 
 const shortName = (n: string) => n.replace(/\.disabled$/i, "");
 
-type CompatFinding = { kind: string; severity: string; model: string; mods: string[] };
-type CompatReport = {
-  findings: CompatFinding[];
-  details: { mods_scanned: number; mods_unreadable: string[]; hero_models: number; models_looked_into: number; skipped: [string, string, string][] };
-};
-
-function CompatPanel() {
+function CompatPanel({ compat }: { compat: Compat }) {
   const { t } = useTranslation();
-  const [rep, setRep] = useState<CompatReport | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { report: rep, scanning, repairing, error, done } = compat;
+  const busy = scanning || repairing;
 
-  const [done, setDone] = useState<{ fixed: string[]; skipped: [string, string][] } | null>(null);
-
-  const run = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      setRep(await call<CompatReport>("scan_compat"));
-    } catch (e) {
-      setError(humanizeError(t, e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const repair = async () => {
-    setBusy(true);
-    setError(null);
-    try {
-      setDone(await call<{ fixed: string[]; skipped: [string, string][] }>("repair_cameras"));
-      setRep(await call<CompatReport>("scan_compat"));
-    } catch (e) {
-      setError(humanizeError(t, e));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const fixable = rep?.findings.some((f) => f.kind === "camera_interface_missing") ?? false;
+  const fixable = rep?.findings.some(isFixable) ?? false;
 
   return (
     <section className="block">
       <div className="view-title-row">
         <h2 className="block-title">{t("fixes.compat.title")}</h2>
-        <button className="btn btn-primary" disabled={busy} onClick={() => void run()}>
+        <button className="btn btn-primary" disabled={busy} onClick={() => void compat.scan()}>
           {busy ? t("fixes.compat.scanning") : t("fixes.compat.scan")}
         </button>
       </div>
@@ -74,7 +42,7 @@ function CompatPanel() {
       )}
       {rep && fixable && (
         <div className="row">
-          <button className="btn btn-primary" disabled={busy} onClick={() => void repair()}>
+          <button className="btn btn-primary" disabled={busy} onClick={() => void compat.repair()}>
             {t("fixes.compat.repair")}
           </button>
           <span className="note">{t("fixes.compat.repairHint")}</span>
@@ -87,6 +55,12 @@ function CompatPanel() {
               <span>{t("fixes.compat.clean")}</span>
             </div>
           )}
+          {rep.fixed.length > 0 && (
+            <div className="notice ok-notice" role="status">
+              <b>{t("fixes.compat.fixedMods", { count: rep.fixed.length })}</b>
+              <span>{rep.fixed.map((x) => shortName(x.file)).join(" · ")}</span>
+            </div>
+          )}
           <ul className="finds">
             {rep.findings.map((f) => (
               <li key={f.kind + f.model} className={`find find-${f.severity}`}>
@@ -95,7 +69,7 @@ function CompatPanel() {
                   <p className="find-text">{t(`fixes.compat.${f.kind}_text`)}</p>
                   <ul className="find-items">
                     <li>{f.model}</li>
-                    <li>{f.mods.map(shortName).join(" · ")}</li>
+                    {f.mods.length > 0 && <li>{f.mods.map(shortName).join(" · ")}</li>}
                   </ul>
                 </div>
               </li>
@@ -122,7 +96,7 @@ function CompatPanel() {
   );
 }
 
-export default function Fixes({ game, onChanged }: Props) {
+export default function Fixes({ game, compat, onChanged }: Props) {
   const { t } = useTranslation();
   const [findings, setFindings] = useState<Finding[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -207,7 +181,7 @@ export default function Fixes({ game, onChanged }: Props) {
         ))}
       </ul>
       <p className="note">{t("fixes.undoNote")}</p>
-      <CompatPanel />
+      <CompatPanel compat={compat} />
     </section>
   );
 }

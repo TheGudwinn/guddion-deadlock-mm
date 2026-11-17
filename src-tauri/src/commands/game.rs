@@ -63,28 +63,50 @@ pub fn run_checks(state: State<'_, AppState>) -> Result<Vec<Finding>, String> {
 #[tauri::command]
 pub async fn scan_compat(state: State<'_, AppState>) -> Result<crate::game::compat::CompatReport, String> {
     let g = game(&state)?;
-    tokio::task::spawn_blocking(move || {
+    tokio::task::spawn_blocking(move || -> Result<crate::game::compat::CompatReport, String> {
         let addons = crate::library::scan::scan_addons(&g.addons_dir).map_err(err)?;
-        Ok(crate::game::compat::scan(&addons))
+        let pkg = g.citadel_dir.join(crate::game::compat::COMPAT_DIR).join(crate::game::compat::PACKAGE_FILE);
+        let mut rep = crate::game::compat::scan(&addons, Some(&pkg), Some(&g.citadel_dir.join("pak01_dir.vpk")));
+        let active = std::fs::read_to_string(&g.gameinfo)
+            .map(|t| matches!(crate::install::gameinfo::ensure_path_before_addons(&t, crate::game::compat::SEARCH_PATH), crate::install::gameinfo::PatchResult::AlreadyPresent))
+            .unwrap_or(true);
+        if pkg.exists() && !active {
+            rep.findings.push(crate::game::compat::CompatFinding { kind: "package_inactive".into(), severity: "warn", model: pkg.display().to_string(), mods: vec![] });
+        }
+        Ok(rep)
     })
     .await
     .map_err(err)?
 }
 
 /// Gives models without camera data the camera data of the game's own model at the same path. The fixed
-/// models go into one separate package in `addons/`; the mods themselves are not touched. Journaled.
+/// models go into one separate package in `citadel/guddion_compat`, which `gameinfo.gi` lists before
+/// `citadel/addons` so it wins over every mod. The mods themselves are not touched. Journaled.
 #[tauri::command]
 pub async fn repair_cameras(state: State<'_, AppState>) -> Result<crate::game::compat::RepairReport, String> {
-    use crate::game::compat::{self, PACKAGE_FILE};
+    use crate::game::compat::{self, COMPAT_DIR, LEGACY_PACKAGE, PACKAGE_FILE, SEARCH_PATH};
+    use crate::install::gameinfo::{ensure_path_before_addons, write_atomic, PatchResult};
     use crate::install::journal::Op;
     let _guard = state.busy.lock().await;
     let g = game(&state)?;
     let d = dirs(&state);
     tokio::task::spawn_blocking(move || -> Result<compat::RepairReport, String> {
         let addons = crate::library::scan::scan_addons(&g.addons_dir).map_err(err)?;
-        let package = g.addons_dir.join(PACKAGE_FILE);
-        let (files, rep) = compat::repair_cameras(&g.citadel_dir.join("pak01_dir.vpk"), &addons, &package)?;
+        let dir = g.citadel_dir.join(COMPAT_DIR);
+        let package = dir.join(PACKAGE_FILE);
+        let legacy = g.addons_dir.join(LEGACY_PACKAGE);
+        let (files, rep) = compat::repair_cameras(&g.citadel_dir.join("pak01_dir.vpk"), &addons, &package, &legacy)?;
         if rep.fixed.is_empty() {
+            // nothing new to repair; make sure an existing package is still switched on in gameinfo.gi
+            if package.exists() {
+                let journal = Journal::open(&d.journal);
+                let ctx = Ctx { game: &g, staging: &d.staging, backups: &d.backups, journal: &journal, limits: Limits::default() };
+                let gi_old = std::fs::read(&g.gameinfo).map_err(err)?;
+                let text = String::from_utf8(gi_old.clone()).map_err(|_| "gameinfo.gi is not valid UTF-8".to_string())?;
+                if let PatchResult::Patched(t) = ensure_path_before_addons(&text, SEARCH_PATH) {
+                    checks::replace_journaled(&ctx, &format!("repair-camera-{}", checks::stamp()), &g.gameinfo, &gi_old, t.as_bytes()).map_err(err)?;
+                }
+            }
             return Ok(rep);
         }
         let refs: Vec<(&str, &[u8])> = files.iter().map(|(p, b)| (p.as_str(), b.as_slice())).collect();
@@ -92,12 +114,37 @@ pub async fn repair_cameras(state: State<'_, AppState>) -> Result<crate::game::c
         let journal = Journal::open(&d.journal);
         let ctx = Ctx { game: &g, staging: &d.staging, backups: &d.backups, journal: &journal, limits: Limits::default() };
         let batch = format!("repair-camera-{}", checks::stamp());
+
+        // gameinfo.gi first: if it cannot be patched, nothing else is written
+        let gi_old = std::fs::read(&g.gameinfo).map_err(err)?;
+        let gi_text = String::from_utf8(gi_old.clone()).map_err(|_| "gameinfo.gi is not valid UTF-8".to_string())?;
+        let gi_new = match ensure_path_before_addons(&gi_text, SEARCH_PATH) {
+            PatchResult::AlreadyPresent => None,
+            PatchResult::Patched(t) => Some(t),
+            PatchResult::Unrecognized => return Err("gameinfo.gi has a layout this app cannot edit safely".into()),
+        };
+        if !dir.exists() {
+            journal.record(&batch, Op::CreateDir { path: dir.clone() }).map_err(err)?;
+            std::fs::create_dir_all(&dir).map_err(err)?;
+        }
         if package.exists() {
             let old = std::fs::read(&package).map_err(err)?;
             checks::replace_journaled(&ctx, &batch, &package, &old, &bytes).map_err(err)?;
         } else {
             journal.record(&batch, Op::CreateFile { path: package.clone() }).map_err(err)?;
-            crate::install::gameinfo::write_atomic(&package, &bytes).map_err(err)?;
+            write_atomic(&package, &bytes).map_err(err)?;
+        }
+        if let Some(t) = gi_new {
+            checks::replace_journaled(&ctx, &batch, &g.gameinfo, &gi_old, t.as_bytes()).map_err(err)?;
+        }
+        if legacy.exists() {
+            // the first version kept the package in addons; its models are in the new one now
+            let old = std::fs::read(&legacy).map_err(err)?;
+            let backup = d.backups.join(format!("{batch}_{LEGACY_PACKAGE}"));
+            std::fs::create_dir_all(&d.backups).map_err(err)?;
+            write_atomic(&backup, &old).map_err(err)?;
+            journal.record(&batch, Op::DeleteFile { path: legacy.clone(), backup }).map_err(err)?;
+            std::fs::remove_file(&legacy).map_err(err)?;
         }
         Ok(rep)
     })

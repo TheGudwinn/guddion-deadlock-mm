@@ -7,7 +7,10 @@
 
 const MAX_BUFFER: usize = 128 << 20;
 const KV3_V5: [u8; 4] = [0x05, 0x33, 0x56, 0x4B];
-const LZ4: u32 = 1;
+const KV3_V4: [u8; 4] = [0x04, 0x33, 0x56, 0x4B];
+pub const STORED: u32 = 0;
+pub const LZ4: u32 = 1;
+pub const ZSTD: u32 = 2;
 /// Fixed v5 header: magic, format GUID, method, dictionary, frame size, counts, sizes.
 const V5_SIZES_AT: usize = 72;
 const V5_STREAM_AT: usize = 120;
@@ -59,23 +62,116 @@ fn u32_at(b: &[u8], at: usize) -> Option<u32> {
     Some(u32::from_le_bytes(b.get(at..at + 4)?.try_into().ok()?))
 }
 
-/// The first decompressed buffer of a KV3 v5 document: the strings used by the document come first.
+/// Buffer compression of a KV3 document: none, LZ4 or zstd.
+pub fn unpack(method: u32, src: &[u8], out_len: usize) -> Result<Vec<u8>, String> {
+    match method {
+        STORED if src.len() == out_len => Ok(src.to_vec()),
+        STORED => Err("stored buffer has the wrong length".into()),
+        LZ4 => lz4_block(src, out_len),
+        ZSTD => super::zstd::decompress(src, out_len),
+        m => Err(format!("compression method {m}")),
+    }
+}
+
+/// `raw` the way a buffer of this method is stored: as it is, as LZ4 literals or as raw zstd blocks.
+pub fn pack(method: u32, raw: &[u8]) -> Vec<u8> {
+    match method {
+        STORED => raw.to_vec(),
+        LZ4 => lz4_store(raw),
+        _ => super::zstd::store(raw),
+    }
+}
+
+/// The part of a KV3 document that holds its strings: for v5 the first decompressed buffer (strings
+/// come first), for the older uncompressed v4 the strings-and-types area.
 pub fn kv3_strings(data: &[u8]) -> Result<Vec<u8>, Unreadable> {
-    if data.get(..4) != Some(&KV3_V5[..]) {
-        return Err(Unreadable::NotKv3V5);
-    }
     let bad = || Unreadable::Damaged("header".into());
-    let method = u32_at(data, 20).ok_or_else(bad)?;
-    if method != LZ4 {
-        return Err(Unreadable::Compression(method));
+    match data.get(..4) {
+        Some(m) if m == KV3_V5 => {
+            let method = u32_at(data, 20).ok_or_else(bad)?;
+            if method > ZSTD {
+                return Err(Unreadable::Compression(method));
+            }
+            let raw = u32_at(data, V5_SIZES_AT).ok_or_else(bad)? as usize;
+            let packed = u32_at(data, V5_SIZES_AT + 4).ok_or_else(bad)? as usize;
+            if raw == 0 || raw > MAX_BUFFER || packed > MAX_BUFFER {
+                return Err(bad());
+            }
+            let src = data.get(V5_STREAM_AT..V5_STREAM_AT.checked_add(packed).ok_or_else(bad)?).ok_or_else(bad)?;
+            unpack(method, src, raw).map_err(Unreadable::Damaged)
+        }
+        Some(m) if m == KV3_V4 => {
+            let d = V4::open(data).map_err(Unreadable::Damaged)?;
+            Ok(d.payload[d.strings_at..].to_vec())
+        }
+        _ => Err(Unreadable::NotKv3V5),
     }
-    let raw = u32_at(data, V5_SIZES_AT).ok_or_else(bad)? as usize;
-    let packed = u32_at(data, V5_SIZES_AT + 4).ok_or_else(bad)? as usize;
-    if raw == 0 || raw > MAX_BUFFER || packed > MAX_BUFFER {
-        return Err(bad());
+}
+
+/// An uncompressed KV3 v4 document, as older exports of some models have it: a 64-byte header, the
+/// value lanes, the strings with the type bytes after them, and a 4-byte trailer. Only the strings are
+/// understood, which is all the key-values text needs.
+struct V4<'a> {
+    data: &'a [u8],
+    payload: &'a [u8],
+    /// Where the strings begin inside the payload.
+    strings_at: usize,
+}
+
+const V4_HEAD: usize = 64;
+const V4_TRAILER: [u8; 4] = [0x00, 0xDD, 0xEE, 0xFF];
+
+impl<'a> V4<'a> {
+    fn open(data: &'a [u8]) -> Result<V4<'a>, String> {
+        let at = |o: usize| u32_at(data, o).map(|v| v as usize).ok_or_else(|| "header is cut short".to_string());
+        if data.get(..4) != Some(&KV3_V4[..]) {
+            return Err("not a KV3 v4 document".into());
+        }
+        if at(20)? as u32 != STORED {
+            return Err(format!("compression method {}", at(20)?));
+        }
+        if at(48)? != at(52)? || at(56)? != 0 || at(60)? != 0 {
+            return Err("document has compressed or binary parts".into());
+        }
+        let area = at(40)?;
+        let end = data.len().checked_sub(V4_TRAILER.len()).filter(|e| *e >= V4_HEAD && data[*e..] == V4_TRAILER).ok_or("unexpected end of the document")?;
+        let payload = &data[V4_HEAD..end];
+        let strings_at = payload.len().checked_sub(area).filter(|_| area > 0 && at(48).is_ok_and(|u| u <= payload.len())).ok_or("implausible sizes")?;
+        Ok(V4 { data, payload, strings_at })
     }
-    let src = data.get(V5_STREAM_AT..V5_STREAM_AT.checked_add(packed).ok_or_else(bad)?).ok_or_else(bad)?;
-    lz4_block(src, raw).map_err(Unreadable::Damaged)
+
+    fn text_span(&self) -> Result<(usize, usize), String> {
+        let (mut p, mut found) = (self.strings_at, None);
+        while p < self.payload.len() {
+            let rest = &self.payload[p..];
+            // the type bytes after the strings end the walk
+            let Some(n) = rest.iter().position(|&c| c == 0) else { break };
+            let s = &rest[..n];
+            if s.starts_with(KV_START) && contains(&s[..s.len().min(400)], KV_FORMAT) {
+                if found.is_some() {
+                    return Err("more than one key-values text".into());
+                }
+                found = Some((p, p + n));
+            }
+            p += n + 1;
+        }
+        found.ok_or_else(|| "no key-values text".to_string())
+    }
+
+    fn with_text(&self, new: &str) -> Result<Vec<u8>, String> {
+        let (s, e) = self.text_span()?;
+        let delta = new.len() as i64 - (e - s) as i64;
+        let mut out = self.data[..V4_HEAD].to_vec();
+        out.extend_from_slice(&self.payload[..s]);
+        out.extend_from_slice(new.as_bytes());
+        out.extend_from_slice(&self.payload[e..]);
+        out.extend_from_slice(&V4_TRAILER);
+        for at in [40, 48, 52] {
+            let v = u32_at(self.data, at).ok_or("header")? as i64 + delta;
+            out[at..at + 4].copy_from_slice(&u32::try_from(v).map_err(|_| "document too large")?.to_le_bytes());
+        }
+        Ok(out)
+    }
 }
 
 /// Plain LZ4 block decoder with every length and offset checked.
@@ -164,6 +260,7 @@ struct Doc<'a> {
     b1: Vec<u8>,
     c2: &'a [u8],
     u2: usize,
+    method: u32,
 }
 
 const KV_START: &[u8] = b"<!-- kv3 encoding:text:";
@@ -175,8 +272,9 @@ impl<'a> Doc<'a> {
         if data.get(..4) != Some(&KV3_V5[..]) {
             return Err("not a KV3 v5 document".into());
         }
-        if at(20)? as u32 != LZ4 {
-            return Err(format!("compression method {}", at(20)?));
+        let method = at(20)? as u32;
+        if method > ZSTD {
+            return Err(format!("compression method {method}"));
         }
         if at(56)? != 0 || at(60)? != 0 {
             return Err("document has binary blobs".into());
@@ -189,12 +287,12 @@ impl<'a> Doc<'a> {
         if data.len() != V5_STREAM_AT + c1 + c2 {
             return Err("unexpected data after the buffers".into());
         }
-        let b1 = lz4_block(&data[V5_STREAM_AT..V5_STREAM_AT + c1], u1)?;
+        let b1 = unpack(method, &data[V5_STREAM_AT..V5_STREAM_AT + c1], u1)?;
         let ints = align(nb, 4);
         if align(ints + ni * 4, 8) + ne * 8 != u1 {
             return Err("unexpected buffer layout".into());
         }
-        Ok(Doc { data, nb, ni, ne, b1, c2: &data[V5_STREAM_AT + c1..], u2 })
+        Ok(Doc { data, nb, ni, ne, b1, c2: &data[V5_STREAM_AT + c1..], u2, method })
     }
 
     /// (start, end) of the key-values string inside the first buffer.
@@ -238,7 +336,7 @@ impl<'a> Doc<'a> {
         b.extend_from_slice(&self.b1[ints..ints + self.ni * 4]);
         b.resize(align(b.len(), 8), 0);
         b.extend_from_slice(&self.b1[eights..eights + self.ne * 8]);
-        let packed = lz4_store(&b);
+        let packed = pack(self.method, &b);
         let mut out = self.data[..V5_STREAM_AT].to_vec();
         let put = |out: &mut Vec<u8>, at: usize, v: usize| out[at..at + 4].copy_from_slice(&(v as u32).to_le_bytes());
         put(&mut out, 28, nb);
@@ -254,35 +352,55 @@ impl<'a> Doc<'a> {
 
 /// The key-values text of a model's `DATA` block (camera, scene and other settings written as text).
 pub fn key_values(data: &[u8]) -> Result<String, String> {
+    if data.get(..4) == Some(&KV3_V4[..]) {
+        let d = V4::open(data)?;
+        let (s, e) = d.text_span()?;
+        return String::from_utf8(d.payload[s..e].to_vec()).map_err(|_| "key-values text is not UTF-8".to_string());
+    }
     Doc::open(data)?.text()
 }
 
 /// A new `DATA` block that is the same as `data` except for the key-values text.
 pub fn with_key_values(data: &[u8], text: &str) -> Result<Vec<u8>, String> {
+    if data.get(..4) == Some(&KV3_V4[..]) {
+        return V4::open(data)?.with_text(text);
+    }
     Doc::open(data)?.with_text(text)
+}
+
+/// Table of blocks: (name, start, size) in table order.
+pub fn block_table(res: &[u8]) -> Option<Vec<([u8; 4], usize, usize)>> {
+    let count = u32_at(res, 12)? as usize;
+    let table = 8usize.checked_add(u32_at(res, 8)? as usize)?;
+    if count > 4096 {
+        return None;
+    }
+    let mut out = Vec::with_capacity(count);
+    for i in 0..count {
+        let at = table.checked_add(i.checked_mul(12)?)?;
+        let head = res.get(at..at + 12)?;
+        let start = at.checked_add(4)?.checked_add(u32::from_le_bytes(head[4..8].try_into().ok()?) as usize)?;
+        let size = u32::from_le_bytes(head[8..12].try_into().ok()?) as usize;
+        start.checked_add(size).filter(|e| *e <= res.len())?;
+        out.push((head[..4].try_into().ok()?, start, size));
+    }
+    Some(out)
 }
 
 /// The resource file with its `DATA` block swapped for `new`. Later blocks keep their 16-byte alignment.
 pub fn replace_data_block(res: &[u8], new: &[u8]) -> Result<Vec<u8>, String> {
+    let idx = block_table(res).and_then(|t| t.iter().rposition(|b| b.0 == *b"DATA")).ok_or("no DATA block")?;
+    replace_block_at(res, idx, new)
+}
+
+/// The resource file with the block at table position `idx` swapped for `new`.
+pub fn replace_block_at(res: &[u8], idx: usize, new: &[u8]) -> Result<Vec<u8>, String> {
     let bad = || "resource header".to_string();
-    let count = u32_at(res, 12).ok_or_else(bad)? as usize;
+    let t = block_table(res).ok_or_else(bad)?;
     let table = 8 + u32_at(res, 8).ok_or_else(bad)? as usize;
-    if count > 4096 {
-        return Err(bad());
-    }
     let entry = |i: usize| table + i * 12;
-    let (mut idx, mut start, mut size) = (None, 0usize, 0usize);
-    for i in 0..count {
-        let at = entry(i);
-        let head = res.get(at..at + 12).ok_or_else(bad)?;
-        if head[..4] == *b"DATA" {
-            start = at + 4 + u32::from_le_bytes(head[4..8].try_into().unwrap()) as usize;
-            size = u32::from_le_bytes(head[8..12].try_into().unwrap()) as usize;
-            idx = Some(i);
-        }
-    }
-    let idx = idx.ok_or("no DATA block")?;
-    let end = start.checked_add(size).filter(|e| *e <= res.len()).ok_or_else(bad)?;
+    let (_, start, size) = *t.get(idx).ok_or_else(bad)?;
+    let end = start + size;
     let tail = &res[end..];
     let mut pad = 0;
     if !tail.is_empty() {
@@ -295,12 +413,11 @@ pub fn replace_data_block(res: &[u8], new: &[u8]) -> Result<Vec<u8>, String> {
     out.resize(out.len() + pad, 0);
     out.extend_from_slice(tail);
     out[entry(idx) + 8..entry(idx) + 12].copy_from_slice(&(new.len() as u32).to_le_bytes());
-    for i in 0..count {
-        let at = entry(i);
-        let off = u32::from_le_bytes(res[at + 4..at + 8].try_into().unwrap()) as usize;
-        if at + 4 + off > start && i != idx {
-            let moved = (off as i64 + shift) as u32;
-            out[at + 4..at + 8].copy_from_slice(&moved.to_le_bytes());
+    for (i, (_, bstart, _)) in t.iter().enumerate() {
+        if i != idx && *bstart > start {
+            let at = entry(i);
+            let off = u32::from_le_bytes(res[at + 4..at + 8].try_into().unwrap()) as i64;
+            out[at + 4..at + 8].copy_from_slice(&((off + shift) as u32).to_le_bytes());
         }
     }
     let total = out.len() as u32;
@@ -382,6 +499,7 @@ mod tests {
 
     #[test]
     fn other_kv3_versions_are_reported_not_misread() {
-        assert_eq!(kv3_strings(&[4, 0x33, 0x56, 0x4B, 0, 0]), Err(Unreadable::NotKv3V5));
+        assert_eq!(kv3_strings(&[3, 0x33, 0x56, 0x4B, 0, 0]), Err(Unreadable::NotKv3V5));
+        assert!(matches!(kv3_strings(&[4, 0x33, 0x56, 0x4B, 0, 0]), Err(Unreadable::Damaged(_))));
     }
 }

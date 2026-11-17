@@ -26,11 +26,15 @@ export default function ModDrawer({ mod, installed, queued, busy, onClose, onIns
   const { t } = useTranslation();
   const [d, setD] = useState<ModDetails | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [shot, setShot] = useState(0); // screenshot shown in the header
+  const [zoom, setZoom] = useState(false); // full-size viewer
 
   useEffect(() => {
     let stale = false;
     setD(null);
     setError(null);
+    setShot(0);
+    setZoom(false);
     call<ModDetails>("mod_details", { id: mod.id }).then(
       (r) => !stale && setD(r),
       (e) => !stale && setError(humanizeError(t, e)),
@@ -40,25 +44,52 @@ export default function ModDrawer({ mod, installed, queued, busy, onClose, onIns
     };
   }, [mod.id, t]);
 
+  const shots = d?.images.length ? d.images : mod.thumbnail ? [mod.thumbnail] : [];
+  const step = (by: number) => setShot((i) => (shots.length ? (i + by + shots.length) % shots.length : 0));
+
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        // The viewer closes first, then the drawer.
+        if (zoom) setZoom(false);
+        else onClose();
+      } else if (shots.length > 1 && (e.key === "ArrowRight" || e.key === "ArrowLeft")) {
+        step(e.key === "ArrowRight" ? 1 : -1);
+      }
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- step only depends on shots.length
+  }, [onClose, zoom, shots.length]);
 
-  const image = d?.images[0] ?? mod.thumbnail;
+  const image = shots[Math.min(shot, Math.max(0, shots.length - 1))] ?? null;
   const desc = d?.description_html ? htmlToText(d.description_html) : "";
 
   return (
     <>
       <div className="scrim" onClick={onClose} />
       <aside className="drawer" role="dialog" aria-modal="true" aria-label={mod.name}>
-        {image ? <img className="drawer-img" src={image} alt="" /> : <div className="drawer-img" />}
+        {image ? (
+          <button type="button" className="drawer-img-btn" onClick={() => setZoom(true)} aria-label={t("drawer.openShot")} title={t("drawer.openShot")}>
+            <img className="drawer-img" src={image} alt="" />
+          </button>
+        ) : (
+          <div className="drawer-img" />
+        )}
         <button className="btn drawer-close" onClick={onClose} autoFocus>
           {t("drawer.close")}
         </button>
         <div className="drawer-body">
           <h2>{mod.name}</h2>
+          {shots.length > 1 && (
+            <div className="shots" role="list" aria-label={t("drawer.screens", { count: shots.length })}>
+              {shots.map((u, i) => (
+                <button key={u} type="button" role="listitem" className={`shot ${i === shot ? "shot-on" : ""}`} aria-label={`${t("drawer.screen")} ${i + 1}`} onClick={() => setShot(i)}>
+                  <img src={u} alt="" loading="lazy" decoding="async" />
+                </button>
+              ))}
+            </div>
+          )}
           <p className="kv">{[mod.author, mod.category, mod.version && `v${mod.version}`].filter(Boolean).join(" · ")}</p>
           {d?.downloads != null && <p className="kv stat">{t("drawer.downloads", { count: d.downloads })}</p>}
           {desc && <p className="desc">{desc}</p>}
@@ -91,6 +122,41 @@ export default function ModDrawer({ mod, installed, queued, busy, onClose, onIns
           })}
         </div>
       </aside>
+      {zoom && image && (
+        <div className="lightbox" role="dialog" aria-modal="true" aria-label={mod.name} onClick={() => setZoom(false)}>
+          <img src={image} alt="" onClick={(e) => e.stopPropagation()} />
+          {shots.length > 1 && (
+            <>
+              <button
+                className="lb-nav lb-prev"
+                aria-label={t("drawer.prev")}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  step(-1);
+                }}
+              >
+                ‹
+              </button>
+              <button
+                className="lb-nav lb-next"
+                aria-label={t("drawer.next")}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  step(1);
+                }}
+              >
+                ›
+              </button>
+              <span className="lb-count">
+                {Math.min(shot, shots.length - 1) + 1} / {shots.length}
+              </span>
+            </>
+          )}
+          <button className="btn lb-close" onClick={() => setZoom(false)}>
+            {t("drawer.close")}
+          </button>
+        </div>
+      )}
     </>
   );
 }

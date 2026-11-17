@@ -9,13 +9,20 @@
     "profiles": "Profiles",
     "settings": "Settings",
     "downloads": "Downloads",
-    "home": "Home"
+    "home": "Home",
+    "performance": "Performance",
+    "fixes": "Fixes"
   },
   "game": {
     "found": "Game found",
     "notFound": "Game not found",
     "notFoundHint": "Deadlock was not found in your Steam libraries. Set the game folder in settings.",
-    "build": "Build {{id}}"
+    "build": "Build {{id}}",
+    "play": "Play",
+    "starting": "Starting…",
+    "playHint": "Start Deadlock through Steam with your launch options",
+    "started": "Launch request sent to Steam. Options: {{args}}",
+    "startedPlain": "Launch request sent to Steam"
   },
   "catalog": {
     "title": "Catalog",
@@ -48,7 +55,12 @@
     "av": "GameBanana: scan failed or not finished",
     "downloads": "{{count}} downloads",
     "noFiles": "This mod has no downloadable files.",
-    "queued": "Queued"
+    "queued": "Queued",
+    "openShot": "Open the screenshot full size",
+    "screens": "Screenshots: {{count}}",
+    "screen": "Screenshot",
+    "prev": "Previous screenshot",
+    "next": "Next screenshot"
   },
   "library": {
     "title": "Library",
@@ -82,6 +94,14 @@
     "checkFailed": "Could not check {{count}} mod(s).",
     "checkOffline": "No connection, data may be out of date.",
     "updateAvailable": "New version available{{version}}",
+    "checkCameras": "Check cameras",
+    "cam_needs": "Camera: needs repair",
+    "cam_needs_text": "In this mod's hero models the camera may not follow the hero. Press the repair button above the list.",
+    "cam_fixed": "Camera fixed",
+    "cam_fixed_text": "This mod's hero models are repaired: the camera comes from the compatibility package (the citadel/guddion_compat folder). The mod itself is unchanged.",
+    "camNeedsTitle": "Hero cameras in mods need repair ({{count}})",
+    "camNeedsText": "In some mods the camera does not follow the hero or does not match the current game version. The repair puts fixed models into a separate folder and does not change the mods.",
+    "camRestart": "Restart the game for the changes to take effect.",
     "update": "Update",
     "updated": "“{{name}}” updated. Slot and state are kept; you can undo this.",
     "patchTitle": "The game was updated after these mods were installed",
@@ -108,7 +128,23 @@
     "unknown": "Unidentified addon",
     "unknownTitle": "Could not identify: {{count}}",
     "unknownNote": "No mod id in the file name or in the other manager's manifest, so the name is unknown. The file names inside are shown to help you recognise it.",
-    "foreignWarn": "If Deadlock Mod Manager is running while you switch a mod here, it may rewrite its own records. The mod itself stays correct; the name is remembered here."
+    "foreignWarn": "If Deadlock Mod Manager is running while you switch a mod here, it may rewrite its own records. The mod itself stays correct; the name is remembered here.",
+    "filters": "Filters",
+    "status": "State",
+    "status_all": "All",
+    "status_on": "On",
+    "status_off": "Off",
+    "filterHero": "Hero",
+    "allHeroes": "All heroes",
+    "filterKind": "Content type",
+    "allKinds": "Any type",
+    "onlyUpdates": "Update available",
+    "sort": "Sort",
+    "sort_load": "Load order",
+    "sort_name": "By name",
+    "sort_size": "By size",
+    "sort_state": "Enabled first",
+    "resetFilters": "Reset filters"
   },
   "action": {
     "install": "install “{{name}}”",
@@ -299,6 +335,17 @@
       "check": "Check for updates",
       "latest": "You have the latest version",
       "found": "Version {{version}} found"
+    },
+    "launch": {
+      "title": "Game launch",
+      "hint": "The Play button uses these options. The game is started through Steam.",
+      "novid": "Skip the intro (-novid)",
+      "console": "Open the console (-console)",
+      "window": "Window mode",
+      "windowDefault": "Window: as in the game",
+      "windowed": "Windowed (-windowed)",
+      "fullscreen": "Fullscreen (-fullscreen)",
+      "extra": "Your own launch options, for example -novid +fps_max 144"
     }
   },
   "update": {
@@ -381,5 +428,134 @@
     "maps": "Maps",
     "scripts": "Scripts",
     "other": "Other"
+  },
+  "performance": {
+    "title": "Performance",
+    "subtitle": "Ready-made game settings from the public Deadlock Mod Manager catalog. They only change the ConVars block of gameinfo.gi and can be taken out at any time.",
+    "presets": "Presets",
+    "preset_default": "Default",
+    "preset_default_hint": "Change nothing in the game",
+    "preset_smooth": "Smooth",
+    "preset_smooth_hint": "144 fps cap, no vertical sync, high priority",
+    "preset_weak": "Low-end PC",
+    "preset_weak_hint": "60 fps cap, vertical sync, DirectX 11",
+    "fps": "Frames and picture",
+    "fpsMax": "Frame rate limit",
+    "off": "No limit",
+    "fpsRange": "The limit must be between 30 and 1000.",
+    "vsync": "Vertical sync",
+    "byGame": "As in the game",
+    "on": "On",
+    "offVsync": "Off",
+    "showFps": "Show the frame counter",
+    "noFocusSleep": "Do not slow down when the window is not focused",
+    "autoexecNote": "These values go into a separate block of autoexec.cfg. The rest of the file is left alone, and an empty set removes the block.",
+    "launch": "Launch options",
+    "api": "Graphics API",
+    "high": "High process priority (-high)",
+    "launchNote": "Used the next time you start the game with the Play button.",
+    "apply": "Apply",
+    "applied": "Applied",
+    "tab_configs": "Configs",
+    "tab_own": "Your settings",
+    "current": "Applied now",
+    "none": "Nothing applied",
+    "noneHint": "gameinfo.gi has no changes from Guddion",
+    "unknownConfig": "Unknown config",
+    "settingsApplied": "Settings changed: {{count}}",
+    "turnOff": "Turn off",
+    "tiers": "How much the graphics are cut",
+    "tier_pretty": "Pretty",
+    "tier_balanced": "Balanced",
+    "tier_lean": "Lean",
+    "tier_sweaty": "Sweaty",
+    "tier_potato": "Potato",
+    "tier_pretty_hint": "Barely touched. Still gorgeous.",
+    "tier_balanced_hint": "Shadows and small things cut, the picture stays pleasant.",
+    "tier_lean_hint": "Less sparkle, more frames.",
+    "tier_sweaty_hint": "Every frame counts.",
+    "tier_potato_hint": "It just runs. The picture is heavily simplified.",
+    "recommended": "Recommended",
+    "by": "By {{author}}",
+    "settingsCount": "{{count}} settings",
+    "skipped": "{{count}} more outside ConVars are not applied",
+    "details": "Details",
+    "license": "Config licence: {{license}}. Taken from the public catalog, the author is on the card.",
+    "gameClosed": "Apply a config with the game closed: it rewrites some files when it exits.",
+    "foreignTitle": "gameinfo.gi already carries a config from another manager",
+    "foreignText": "To keep two sets from mixing, turn it off in that manager first, then come back here."
+  },
+  "fixes": {
+    "title": "Fixes",
+    "subtitle": "Checks for the usual reasons mods do not work or break the game, such as a broken camera.",
+    "recheck": "Check again",
+    "allGood": "No problems found",
+    "allGoodText": "The game reads the mods folder, and nothing in the mods or settings looks suspicious.",
+    "done": "Fixed",
+    "more": "and {{count}} more",
+    "undoNote": "Every fix is written to the journal, so it can be undone with the undo button in the library.",
+    "compat": {
+      "title": "Mod compatibility check",
+      "text": "Looks inside the enabled hero mods for models that may break on the current game version. It changes nothing. A finding is a hint, not proof of a defect.",
+      "scan": "Check mods",
+      "scanning": "Checking…",
+      "clean": "No suspicious models found.",
+      "camera_interface_missing": "No camera interface",
+      "camera_interface_missing_text": "The hero model has no camera data (AttachmentCameraData). On a current game version such a mod can give a broken or stuck camera. If the camera acts up, disable the mod or look for a newer version.",
+      "model_overlap": "Mod replaces the same model as another one",
+      "model_overlap_text": "Several enabled mods contain this hero model. Only one of them wins in the game.",
+      "details": "Scan details",
+      "mods": "Mods scanned: {{count}}",
+      "heroModels": "Hero models: {{count}}, looked into: {{read}}",
+      "unreadable": "Could not read mods: {{list}}",
+      "skipped": "Not looked into (format not supported yet, or the file is damaged):",
+      "repair": "Repair cameras",
+      "package_inactive": "Compatibility package is not switched on",
+      "package_inactive_text": "The fix file exists, but gameinfo.gi does not list its folder (for example after a game update). Press the Repair cameras button to switch it on again.",
+      "repairHint": "Repaired models go into a separate folder, citadel/guddion_compat, that gameinfo.gi reads before addons, so they win over any mod. The mods themselves are not changed. Undo it in the journal (undo button in the library). Restart the game after repairing.",
+      "repaired": "Models repaired: {{count}}",
+      "fixedMods": "Mods repaired: {{count}}",
+      "repairNote": "Repairs the camera list (AttachmentCameraData) and the axes of the camera points on the root bone. Missing points (healthbar, hero_attach_*, portrait_camera_attach) are not added, and some models may keep their own aim tilt. Check it in the game: if the camera still acts up, disable the mod or delete the folder citadel/guddion_compat.",
+      "camera_interface_outdated": "Camera list differs from the game",
+      "camera_interface_outdated_text": "The model has camera data, but not the list of the current game model (extra or missing points). The repair puts the game's camera list in.",
+      "camera_basis_rotated": "Camera in turned axes: does not follow the hero",
+      "camera_basis_rotated_text": "The camera points are written in the root bone's axes, turned compared with the game's model. The camera then stays in place instead of following the hero. The repair converts the points to model axes."
+    },
+    "fix_patch_gameinfo": "Fix",
+    "fix_disable": "Turn off",
+    "fix_clean_temp": "Delete",
+    "fix_comment_autoexec": "Comment out",
+    "gameinfo_unpatched": {
+      "title": "The game does not read the mods folder",
+      "text": "gameinfo.gi has no path to the addons folder, so mods are not loaded. This often happens after a game update."
+    },
+    "gameinfo_unrecognized": {
+      "title": "gameinfo.gi is not recognised",
+      "text": "It is not safe to edit it automatically. Verify the game files in Steam."
+    },
+    "gameinfo_unreadable": {
+      "title": "gameinfo.gi cannot be read",
+      "text": "Check the game folder in settings."
+    },
+    "broken_vpk": {
+      "title": "Damaged mod files",
+      "text": "These files cannot be read and may block loading. Turn them off or install the mod again."
+    },
+    "camera_mod": {
+      "title": "Mods change the camera",
+      "text": "These mods contain camera files, which often break the view after a game update. Turn them off and see whether the problem goes away."
+    },
+    "autoexec_camera": {
+      "title": "Camera set in autoexec.cfg",
+      "text": "These lines change the camera or field of view and can cause distortion. The fix comments them out and keeps the old file."
+    },
+    "temp_files": {
+      "title": "Download leftovers in the mods folder",
+      "text": "Unfinished and temporary files. They can be deleted."
+    },
+    "all_off": {
+      "title": "Every mod is off",
+      "text": "The game will start without mods."
+    }
   }
 }

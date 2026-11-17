@@ -21,6 +21,7 @@ import {
   type UpdateReport,
 } from "./lib/api";
 import { humanizeError } from "./lib/format";
+import { useCompat } from "./lib/compat";
 import Activity, { type ActivityState } from "./components/Activity";
 import UpdateBanner from "./components/UpdateBanner";
 import WindowControls from "./components/WindowControls";
@@ -33,8 +34,10 @@ import Library from "./features/library/Library";
 import Profiles from "./features/profiles/Profiles";
 import Settings from "./features/settings/Settings";
 import Downloads from "./features/downloads/Downloads";
+import Performance from "./features/performance/Performance";
+import Fixes from "./features/fixes/Fixes";
 
-type View = "home" | "catalog" | "library" | "profiles" | "downloads" | "settings";
+type View = "home" | "catalog" | "library" | "profiles" | "downloads" | "performance" | "fixes" | "settings";
 
 export default function App() {
   const { t } = useTranslation();
@@ -46,7 +49,9 @@ export default function App() {
   const [installed, setInstalled] = useState<InstalledMod[] | null>(null);
   const [foreign, setForeign] = useState<ForeignAddon[]>([]);
   const [contents, setContents] = useState<AddonContent[]>([]);
-  const { groups, known } = useForeignMods(foreign);
+  const ownRemoteIds = useMemo(() => (installed ?? []).map((m) => m.remote_id).filter((id): id is string => !!id), [installed]);
+  const { groups, known } = useForeignMods(foreign, ownRemoteIds);
+  const [launching, setLaunching] = useState(false);
   const [last, setLast] = useState<LastAction | null>(null);
   const [profiles, setProfiles] = useState<Profile[] | null>(null);
   const [open, setOpen] = useState<Mod | null>(null);
@@ -56,6 +61,7 @@ export default function App() {
   const [maximized, setMaximized] = useState(false);
   const [queue, setQueue] = useState<QueueRow[]>([]);
   const prevStates = useRef<Map<number, string>>(new Map());
+  const compat = useCompat();
   const [modReport, setModReport] = useState<UpdateReport | null>(null);
   const [checkingMods, setCheckingMods] = useState(false);
   const autoChecked = useRef(false);
@@ -293,6 +299,17 @@ export default function App() {
 
   const toggle = (id: number, enabled: boolean) => void run(() => call("set_mod_enabled", { id, enabled }));
   const toggleForeign = (g: ForeignGroup, enabled: boolean) => void run(() => call("set_foreign_enabled", { files: g.files.map((f) => f.name), id: g.id, enabled }));
+  const launchGame = async () => {
+    setLaunching(true);
+    try {
+      const args = await call<string>("launch_game");
+      setActivity({ kind: "ok", text: args ? t("game.started", { args }) : t("game.startedPlain") });
+    } catch (e) {
+      setActivity({ kind: "error", text: humanizeError(t, e) });
+    } finally {
+      setTimeout(() => setLaunching(false), 4000); // Steam needs a moment; stops double clicks
+    }
+  };
   const remove = (id: number) => void run(() => call("uninstall_mod", { id }));
   const reorder = (ids: number[]) =>
     void run(async () => {
@@ -318,6 +335,8 @@ export default function App() {
             ["profiles", "profiles", 0],
             ["library", "library", modReport?.updates.length ?? 0],
             ["downloads", "downloads", activeDownloads.length],
+            ["performance", "performance", 0],
+            ["fixes", "fixes", 0],
           ] as const
         ).map(([id, icon, badge]) => (
           <button key={id} className="rail-item" aria-current={view === id ? "page" : undefined} aria-label={t(`nav.${id}`)} title={t(`nav.${id}`)} onClick={() => setView(id)}>
@@ -351,6 +370,10 @@ export default function App() {
                 <b>{profiles.find((x) => x.active)?.name}</b>
               </span>
             )}
+            <button className="btn btn-play" disabled={!game || launching} onClick={() => void launchGame()} title={game ? t("game.playHint") : t("game.notFoundHint")}>
+              <Icon name="play" />
+              {launching ? t("game.starting") : t("game.play")}
+            </button>
             <span className="chip" title={game === null ? t("game.notFoundHint") : undefined}>
               <span className={`dot ${game ? "" : "off"}`} />
               {game === undefined ? "…" : game ? t("game.found") : t("game.notFound")}
@@ -398,6 +421,16 @@ export default function App() {
               void refresh();
             }}
           />
+        ) : view === "performance" ? (
+          <Performance />
+        ) : view === "fixes" ? (
+          <Fixes
+            game={game}
+            compat={compat}
+            onChanged={() => {
+              void refresh();
+            }}
+          />
         ) : view === "profiles" ? (
           <Profiles
             profiles={profiles}
@@ -429,6 +462,8 @@ export default function App() {
             onCheckUpdates={() => void checkMods(true)}
             onUpdate={(id) => void updateMod(id)}
             onGoCatalog={() => setView("catalog")}
+            compat={compat}
+            gameFound={!!game}
           />
         )}
       </main>

@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod db;
 pub mod error;
+pub mod game;
 pub mod install;
 pub mod library;
 pub mod net;
@@ -90,6 +91,16 @@ pub fn run() {
             commands::check_game_folder,
             commands::run_diagnostics,
             commands::app_version,
+            commands::get_game_prefs,
+            commands::save_game_prefs,
+            commands::launch_game,
+            commands::run_checks,
+            commands::scan_compat,
+            commands::repair_cameras,
+            commands::apply_fix,
+            commands::perf_state,
+            commands::perf_details,
+            commands::perf_apply,
             commands::check_update,
             commands::install_update
         ])

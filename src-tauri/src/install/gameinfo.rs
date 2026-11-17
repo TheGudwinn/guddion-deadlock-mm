@@ -108,6 +108,8 @@ struct Block {
     has_addons: bool,
     /// Line index of the first clean `Game citadel` line (exactly those two words, nothing else).
     anchor: Option<usize>,
+    /// (line, path) of every `Game <path>` line.
+    games: Vec<(usize, String)>,
 }
 
 /// Parse every `SearchPaths { ... }` block. `None` = the block structure is malformed.
@@ -150,9 +152,10 @@ fn parse_blocks(toks: &[Token]) -> Option<Vec<Block>> {
         if depth != 0 {
             return None; // never closed
         }
-        let mut block = Block { has_addons: false, anchor: None };
+        let mut block = Block { has_addons: false, anchor: None, games: Vec::new() };
         for (line, words, braces) in &lines {
             if words.len() >= 2 && words[0].eq_ignore_ascii_case("Game") {
+                block.games.push((*line, words[1].to_string()));
                 if same_path(words[1], ADDONS) {
                     block.has_addons = true;
                 }
@@ -201,6 +204,33 @@ pub fn ensure_addons_path(text: &str) -> PatchResult {
     PatchResult::Patched(out)
 }
 
+/// Make sure `Game <rel>` is listed in SearchPaths right before the `citadel/addons` line, so files in
+/// `<rel>` win over every addon. An earlier search path has priority in the engine.
+pub fn ensure_path_before_addons(text: &str, rel: &str) -> PatchResult {
+    let Some(toks) = lex(text) else { return PatchResult::Unrecognized };
+    let Some(blocks) = parse_blocks(&toks) else { return PatchResult::Unrecognized };
+    if blocks.iter().any(|b| b.games.iter().any(|(_, p)| same_path(p, rel))) {
+        return PatchResult::AlreadyPresent;
+    }
+    let Some(at) = blocks.iter().find_map(|b| b.games.iter().find(|(_, p)| same_path(p, ADDONS)).map(|(l, _)| *l)) else {
+        return PatchResult::Unrecognized;
+    };
+    let lines: Vec<&str> = text.split_inclusive('\n').collect();
+    let Some(line) = lines.get(at) else { return PatchResult::Unrecognized };
+    let indent: String = line.chars().take_while(|c| *c == ' ' || *c == '\t').collect();
+    let crlf = line.ends_with("\r\n") || (!line.ends_with('\n') && text.contains("\r\n"));
+    let eol = if crlf { "\r\n" } else { "\n" };
+    let new_line = format!("{indent}Game                {rel} // guddion-compat{eol}");
+    let mut out = String::with_capacity(text.len() + new_line.len());
+    for (i, l) in lines.iter().enumerate() {
+        if i == at {
+            out.push_str(&new_line);
+        }
+        out.push_str(l);
+    }
+    PatchResult::Patched(out)
+}
+
 /// Replace `path` with `data` so that a crash can never leave a half-written file: write a sibling
 /// temp file, flush it to disk, then rename it over the original.
 pub fn write_atomic(path: &Path, data: &[u8]) -> std::io::Result<()> {
@@ -238,6 +268,20 @@ mod tests {
         assert!(lines[i + 1].trim_start().starts_with("Game") && lines[i + 1].trim_end().ends_with("citadel"));
         assert!(s.contains("citadel/addons\r\n"));
         assert_eq!(s.lines().count(), BASE.lines().count() + 1);
+    }
+
+    #[test]
+    fn compat_path_goes_right_before_addons_and_only_once() {
+        let text = "GameInfo\r\n{\r\n\tSearchPaths\r\n\t{\r\n\t\t// DMM\r\n\t\tGame\t\tcitadel/dmm_localization_default // dmm-search-path\r\n\t\tGame\t\tcitadel/addons // dmm-search-path\r\n\t\tGame                citadel\r\n\t}\r\n}\r\n";
+        let PatchResult::Patched(new) = ensure_path_before_addons(text, "citadel/guddion_compat") else { panic!() };
+        let a = new.find("guddion_compat").unwrap();
+        let b = new.find("citadel/addons").unwrap();
+        assert!(new.find("dmm_localization_default").unwrap() < a && a < b);
+        assert!(new.contains("// guddion-compat\r\n"));
+        assert_eq!(ensure_path_before_addons(&new, "citadel/guddion_compat"), PatchResult::AlreadyPresent);
+        let added = "\t\tGame                citadel/guddion_compat // guddion-compat\r\n";
+        assert_eq!(new.replace(added, ""), text);
+        assert_eq!(ensure_path_before_addons("GameInfo\n{\n}\n", "x"), PatchResult::Unrecognized);
     }
 
     #[test]

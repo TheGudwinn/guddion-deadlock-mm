@@ -1,4 +1,5 @@
 //! Tauri commands. Thin wrappers: all logic lives in the library modules.
+mod game;
 mod library;
 mod mod_updates;
 mod profiles;
@@ -6,6 +7,7 @@ mod queue;
 mod settings;
 mod updates;
 
+pub use game::*;
 pub use library::*;
 pub use mod_updates::*;
 pub use profiles::*;

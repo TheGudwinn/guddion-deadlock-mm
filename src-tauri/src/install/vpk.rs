@@ -120,6 +120,118 @@ pub fn read_vpk_index(path: &Path) -> Result<VpkInfo, String> {
     Ok(VpkInfo { version, files, external_archives: external })
 }
 
+/// One directory entry with the position of its data.
+#[derive(Debug, Clone)]
+pub struct VpkEntry {
+    pub path: String,
+    pub preload: Vec<u8>,
+    pub archive: u16,
+    pub offset: u32,
+    pub len: u32,
+}
+
+#[derive(Debug, Clone)]
+pub struct VpkData {
+    /// Where the embedded data starts (header + tree).
+    pub data_base: u64,
+    pub entries: Vec<VpkEntry>,
+}
+
+/// Largest single file `read_entry` will load.
+pub const MAX_ENTRY: u32 = 96 << 20;
+
+/// Like [`read_vpk_index`] but keeps what is needed to read the data of single files later.
+pub fn read_vpk_entries(path: &Path) -> Result<VpkData, String> {
+    let mut f = std::fs::File::open(path).map_err(|e| e.to_string())?;
+    let mut head = [0u8; 12];
+    f.read_exact(&mut head).map_err(|_| "file too small".to_string())?;
+    if u32::from_le_bytes(head[0..4].try_into().unwrap()) != SIGNATURE {
+        return Err("bad signature (not a VPK)".into());
+    }
+    let version = u32::from_le_bytes(head[4..8].try_into().unwrap());
+    let tree_size = u32::from_le_bytes(head[8..12].try_into().unwrap());
+    let header = match version {
+        1 => 12u64,
+        2 => {
+            let mut extra = [0u8; 16];
+            f.read_exact(&mut extra).map_err(|_| "truncated v2 header".to_string())?;
+            28
+        }
+        v => return Err(format!("unsupported VPK version {v}")),
+    };
+    if tree_size == 0 || tree_size > MAX_TREE {
+        return Err(format!("implausible tree size {tree_size}"));
+    }
+    let mut tree = vec![0u8; tree_size as usize];
+    f.read_exact(&mut tree).map_err(|_| "truncated directory tree".to_string())?;
+    let mut c = Cur { b: &tree, p: 0 };
+    let mut entries = Vec::new();
+    loop {
+        let ext = c.cstr()?;
+        if ext.is_empty() {
+            break;
+        }
+        loop {
+            let dir = c.cstr()?;
+            if dir.is_empty() {
+                break;
+            }
+            loop {
+                let name = c.cstr()?;
+                if name.is_empty() {
+                    break;
+                }
+                let _crc = c.u32()?;
+                let preload = c.u16()? as usize;
+                let archive = c.u16()?;
+                let offset = c.u32()?;
+                let len = c.u32()?;
+                if c.u16()? != 0xFFFF {
+                    return Err("bad entry terminator".into());
+                }
+                let preload = c.take(preload)?.to_vec();
+                let mut p = String::new();
+                if dir != " " {
+                    p.push_str(&dir);
+                    p.push('/');
+                }
+                p.push_str(&name);
+                if ext != " " {
+                    p.push('.');
+                    p.push_str(&ext);
+                }
+                entries.push(VpkEntry { path: p, preload, archive, offset, len });
+            }
+        }
+    }
+    Ok(VpkData { data_base: header + tree_size as u64, entries })
+}
+
+/// Reads the whole content of one entry (preload bytes + data).
+pub fn read_entry(vpk: &Path, d: &VpkData, e: &VpkEntry) -> Result<Vec<u8>, String> {
+    use std::io::{Seek, SeekFrom};
+    if e.len > MAX_ENTRY {
+        return Err("file too large".into());
+    }
+    let mut out = e.preload.clone();
+    if e.len == 0 {
+        return Ok(out);
+    }
+    let (file, pos) = if e.archive == EMBEDDED {
+        (vpk.to_path_buf(), d.data_base + e.offset as u64)
+    } else {
+        let name = vpk.file_name().and_then(|n| n.to_str()).ok_or("bad path")?;
+        let base = name.strip_suffix("_dir.vpk").ok_or("entry lives in an archive, but this is not a _dir.vpk")?;
+        (vpk.with_file_name(format!("{base}_{:03}.vpk", e.archive)), e.offset as u64)
+    };
+    let mut f = std::fs::File::open(&file).map_err(|e| e.to_string())?;
+    f.seek(SeekFrom::Start(pos)).map_err(|e| e.to_string())?;
+    let start = out.len();
+    out.resize(start + e.len as usize, 0);
+    f.read_exact(&mut out[start..]).map_err(|_| "data is cut short".to_string())?;
+    Ok(out)
+}
+
 /// Build a minimal v2 VPK with all data embedded. Used by tests and fixtures.
 #[doc(hidden)]
 pub fn build_vpk(files: &[(&str, &[u8])]) -> Vec<u8> {

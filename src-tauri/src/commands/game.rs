@@ -1,0 +1,209 @@
+//! Game launch, performance presets and repair commands.
+use super::library::{dirs, game};
+use super::{err, AppState};
+use crate::game::checks::{self, Finding};
+use crate::game::perf;
+use crate::game::prefs::{self, GamePrefs};
+use crate::install::extract::Limits;
+use crate::install::installer::Ctx;
+use crate::install::journal::Journal;
+use serde::Serialize;
+use tauri::{AppHandle, State};
+use tauri_plugin_opener::OpenerExt;
+
+fn prefs_path(state: &AppState) -> std::path::PathBuf {
+    state.app_dir.join("game_prefs.json")
+}
+
+#[tauri::command]
+pub fn get_game_prefs(state: State<'_, AppState>) -> GamePrefs {
+    prefs::load(&prefs_path(&state))
+}
+
+/// Saves the options. The performance variables are written to `autoexec.cfg` when the game is known.
+#[tauri::command]
+pub async fn save_game_prefs(state: State<'_, AppState>, prefs: GamePrefs) -> Result<GamePrefs, String> {
+    prefs.validate().map_err(err)?;
+    let _guard = state.busy.lock().await;
+    if let Ok(g) = game(&state) {
+        let d = dirs(&state);
+        let p = prefs.clone();
+        tokio::task::spawn_blocking(move || {
+            let journal = Journal::open(&d.journal);
+            let ctx = Ctx { game: &g, staging: &d.staging, backups: &d.backups, journal: &journal, limits: Limits::default() };
+            checks::write_performance(&ctx, &p).map(|_| ())
+        })
+        .await
+        .map_err(err)?
+        .map_err(err)?;
+    }
+    prefs::save(&prefs_path(&state), &prefs).map_err(err)?;
+    Ok(prefs)
+}
+
+/// Starts Deadlock through Steam with the saved launch options.
+#[tauri::command]
+pub fn launch_game(app: AppHandle, state: State<'_, AppState>) -> Result<String, String> {
+    let g = game(&state)?;
+    if !g.root.exists() {
+        return Err("game_not_found".into());
+    }
+    let args = prefs::load(&prefs_path(&state)).launch_args().map_err(err)?;
+    let url = prefs::steam_url(&args);
+    app.opener().open_url(&url, None::<&str>).map_err(err)?;
+    Ok(args.join(" "))
+}
+
+#[tauri::command]
+pub fn run_checks(state: State<'_, AppState>) -> Result<Vec<Finding>, String> {
+    Ok(checks::run_checks(&game(&state)?))
+}
+
+/// Looks into the enabled mods for models that may break on the current game version. Changes nothing.
+#[tauri::command]
+pub async fn scan_compat(state: State<'_, AppState>) -> Result<crate::game::compat::CompatReport, String> {
+    let g = game(&state)?;
+    tokio::task::spawn_blocking(move || {
+        let addons = crate::library::scan::scan_addons(&g.addons_dir).map_err(err)?;
+        Ok(crate::game::compat::scan(&addons))
+    })
+    .await
+    .map_err(err)?
+}
+
+/// Gives models without camera data the camera data of the game's own model at the same path. The fixed
+/// models go into one separate package in `addons/`; the mods themselves are not touched. Journaled.
+#[tauri::command]
+pub async fn repair_cameras(state: State<'_, AppState>) -> Result<crate::game::compat::RepairReport, String> {
+    use crate::game::compat::{self, PACKAGE_FILE};
+    use crate::install::journal::Op;
+    let _guard = state.busy.lock().await;
+    let g = game(&state)?;
+    let d = dirs(&state);
+    tokio::task::spawn_blocking(move || -> Result<compat::RepairReport, String> {
+        let addons = crate::library::scan::scan_addons(&g.addons_dir).map_err(err)?;
+        let package = g.addons_dir.join(PACKAGE_FILE);
+        let (files, rep) = compat::repair_cameras(&g.citadel_dir.join("pak01_dir.vpk"), &addons, &package)?;
+        if rep.fixed.is_empty() {
+            return Ok(rep);
+        }
+        let refs: Vec<(&str, &[u8])> = files.iter().map(|(p, b)| (p.as_str(), b.as_slice())).collect();
+        let bytes = crate::install::vpk::build_vpk(&refs);
+        let journal = Journal::open(&d.journal);
+        let ctx = Ctx { game: &g, staging: &d.staging, backups: &d.backups, journal: &journal, limits: Limits::default() };
+        let batch = format!("repair-camera-{}", checks::stamp());
+        if package.exists() {
+            let old = std::fs::read(&package).map_err(err)?;
+            checks::replace_journaled(&ctx, &batch, &package, &old, &bytes).map_err(err)?;
+        } else {
+            journal.record(&batch, Op::CreateFile { path: package.clone() }).map_err(err)?;
+            crate::install::gameinfo::write_atomic(&package, &bytes).map_err(err)?;
+        }
+        Ok(rep)
+    })
+    .await
+    .map_err(err)?
+}
+
+#[derive(Serialize)]
+pub struct FixResult {
+    pub changed: usize,
+}
+
+/// Applies one fix. `items` are the files the fix should touch (for `disable`).
+#[tauri::command]
+pub async fn apply_fix(state: State<'_, AppState>, fix: String, items: Vec<String>) -> Result<FixResult, String> {
+    let _guard = state.busy.lock().await;
+    let g = game(&state)?;
+    let d = dirs(&state);
+    tokio::task::spawn_blocking(move || -> Result<FixResult, String> {
+        let journal = Journal::open(&d.journal);
+        let ctx = Ctx { game: &g, staging: &d.staging, backups: &d.backups, journal: &journal, limits: Limits::default() };
+        let changed = match fix.as_str() {
+            "patch_gameinfo" => usize::from(!checks::fix_gameinfo(&ctx).map_err(err)?.is_empty()),
+            "comment_autoexec" => usize::from(!checks::fix_autoexec_camera(&ctx).map_err(err)?.is_empty()),
+            "clean_temp" => checks::clean_temp(&g).map_err(err)?,
+            "disable" => checks::disable_addons(&ctx, &items).map_err(err)?,
+            _ => return Err("unknown fix".into()),
+        };
+        Ok(FixResult { changed })
+    })
+    .await
+    .map_err(err)?
+}
+
+#[derive(Serialize)]
+pub struct PerfPreset {
+    pub id: String,
+    pub name: String,
+    pub author: String,
+    pub tier: String,
+    pub blurb: String,
+    pub recommended: bool,
+    pub url: Option<String>,
+    pub license: Option<String>,
+    pub settings: usize,
+    pub skipped: usize,
+}
+
+#[derive(Serialize)]
+pub struct PerfState {
+    pub presets: Vec<PerfPreset>,
+    pub status: perf::PerfStatus,
+}
+
+fn read_gameinfo(g: &crate::steam::locate::GameInstall) -> Result<String, String> {
+    String::from_utf8(std::fs::read(&g.gameinfo).map_err(err)?).map_err(|_| "gameinfo.gi is not valid UTF-8".to_string())
+}
+
+#[tauri::command]
+pub fn perf_state(state: State<'_, AppState>) -> Result<PerfState, String> {
+    let g = game(&state)?;
+    let text = read_gameinfo(&g)?;
+    let presets = perf::presets()
+        .iter()
+        .map(|p| PerfPreset {
+            id: p.id.clone(),
+            name: p.name.clone(),
+            author: p.author.clone(),
+            tier: p.tier.clone(),
+            blurb: p.blurb.clone(),
+            recommended: p.recommended,
+            url: p.url.clone(),
+            license: p.license.clone(),
+            settings: p.entries.len(),
+            skipped: p.skipped,
+        })
+        .collect();
+    Ok(PerfState { presets, status: perf::status(&text) })
+}
+
+#[tauri::command]
+pub fn perf_details(id: String) -> Result<Vec<(String, String)>, String> {
+    perf::preset(&id).map(|p| p.entries.clone()).ok_or_else(|| format!("unknown config: {id}"))
+}
+
+/// Apply a config (`id`) or take the applied one out (`None`). Undo restores gameinfo.gi from the backup.
+#[tauri::command]
+pub async fn perf_apply(state: State<'_, AppState>, id: Option<String>) -> Result<perf::PerfStatus, String> {
+    let _guard = state.busy.lock().await;
+    let g = game(&state)?;
+    let d = dirs(&state);
+    tokio::task::spawn_blocking(move || -> Result<perf::PerfStatus, String> {
+        let old = std::fs::read(&g.gameinfo).map_err(err)?;
+        let text = String::from_utf8(old.clone()).map_err(|_| "gameinfo.gi is not valid UTF-8".to_string())?;
+        let new = match &id {
+            Some(id) => perf::apply(&text, perf::preset(id).ok_or_else(|| format!("unknown config: {id}"))?).map_err(err)?,
+            None => perf::remove(&text),
+        };
+        if new != text {
+            let journal = Journal::open(&d.journal);
+            let ctx = Ctx { game: &g, staging: &d.staging, backups: &d.backups, journal: &journal, limits: Limits::default() };
+            let batch = format!("performance-gi-{}", checks::stamp());
+            checks::replace_journaled(&ctx, &batch, &g.gameinfo, &old, new.as_bytes()).map_err(err)?;
+        }
+        Ok(perf::status(&new))
+    })
+    .await
+    .map_err(err)?
+}

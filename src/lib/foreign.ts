@@ -47,9 +47,10 @@ export function groupTitle(g: ForeignGroup, known: Record<string, CachedMod | nu
  * Groups of foreign addons plus their catalog info. Names and icons come from a cache kept between
  * runs, so they appear at once; only ids never seen before are looked up (8 at a time).
  */
-export function useForeignMods(foreign: ForeignAddon[]) {
+export function useForeignMods(foreign: ForeignAddon[], extraIds: string[] = []) {
   const [known, setKnown] = useState<Record<string, CachedMod | null>>(() => loadCachedMods());
-  const ids = useMemo(() => [...new Set(foreign.map((f) => f.remote_id).filter((id): id is string => !!id && /^\d+$/.test(id)))], [foreign]);
+  const extraKey = extraIds.join(",");
+  const ids = useMemo(() => [...new Set([...foreign.map((f) => f.remote_id), ...extraKey.split(",")].filter((id): id is string => !!id && /^\d+$/.test(id)))], [foreign, extraKey]);
 
   // Ids already asked about, so a refresh while lookups are running does not ask again.
   const asked = useRef(new Set<string>());

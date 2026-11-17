@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import i18n from "../../i18n";
 import { call, isTauri, type GameInstall, type HostReport, type ProxyMode, type SettingsView, type UpdateInfo } from "../../lib/api";
 import { humanizeError } from "../../lib/format";
+import GameOptions from "./GameOptions";
 
 type Props = {
   game: GameInstall | null | undefined;
@@ -336,6 +337,8 @@ export default function Settings({ game, onSaved, onCheckUpdate }: Props) {
           </ul>
         )}
       </section>
+
+      <GameOptions />
 
       <section className="block">
         <h2 className="block-title">{t("settings.language.title")}</h2>

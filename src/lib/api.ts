@@ -102,6 +102,20 @@ export type DiagStep = { name: "url" | "dns" | "tcp" | "http"; state: "ok" | "fa
 export type Verdict = "ok" | "dns_failed" | "tcp_failed" | "tls_failed" | "proxy_failed" | "http_failed" | "bad_url";
 export type HostReport = { url: string; host: string; steps: DiagStep[]; verdict: Verdict };
 
+export type GamePrefs = {
+  novid: boolean;
+  console: boolean;
+  high_priority: boolean;
+  api: "default" | "dx11" | "vulkan";
+  window: "default" | "windowed" | "fullscreen";
+  extra: string;
+  fps_max: number;
+  vsync: "default" | "on" | "off";
+  show_fps: boolean;
+  no_focus_sleep: boolean;
+};
+export type Finding = { kind: string; severity: "error" | "warn" | "info"; items: string[]; fix: "patch_gameinfo" | "disable" | "clean_temp" | "comment_autoexec" | null };
+
 const inTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 /** Calls a Tauri command. In a plain browser (design preview) it falls back to sample data. */

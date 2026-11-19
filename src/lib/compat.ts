@@ -30,7 +30,7 @@ export type Compat = {
 export const shortName = (n: string) => n.replace(/\.disabled$/i, "");
 
 /** Findings the repair can act on. */
-export const isFixable = (f: CompatFinding) => f.kind.startsWith("camera_") || f.kind === "package_inactive";
+export const isFixable = (f: CompatFinding) => f.kind.startsWith("camera_") || f.kind === "package_inactive" || f.kind === "compat_stale";
 
 /** The camera state of a mod made of these files (names as in the addons folder), or null when it is fine. */
 export function camStateOf(report: CompatReport | null, files: string[]): CamState | null {
@@ -59,6 +59,7 @@ export function useCompat(): Compat {
   const [done, setDone] = useState<RepairResult | null>(null);
   const running = useRef(false);
   const again = useRef(false);
+  const cleaned = useRef(false); // an out-of-date package was already cleaned automatically for this state
 
   const scan = useCallback(async () => {
     if (running.current) {
@@ -71,7 +72,17 @@ export function useCompat(): Compat {
     try {
       do {
         again.current = false;
-        setReport(await call<CompatReport>("scan_compat"));
+        const r = await call<CompatReport>("scan_compat");
+        setReport(r);
+        // a package made from mods that have changed since overrides the real models and shows up as red shapes
+        // in the game: rebuild it at once, without waiting for a click
+        if (r.findings.some((f) => f.kind === "compat_stale")) {
+          if (!cleaned.current) {
+            cleaned.current = true;
+            await call("repair_cameras");
+            again.current = true;
+          }
+        } else cleaned.current = false;
       } while (again.current);
     } catch (e) {
       setError(humanizeError(t, e));

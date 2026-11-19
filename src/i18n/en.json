@@ -589,6 +589,8 @@
       "repair": "Repair cameras",
       "package_inactive": "Compatibility package is not switched on",
       "package_inactive_text": "The fix file exists, but gameinfo.gi does not list its folder (for example after a game update). Press the Repair cameras button to switch it on again.",
+      "compat_stale": "Out-of-date fix file",
+      "compat_stale_text": "The compatibility package holds a copy of a hero model made from a mod that has since been updated, disabled or removed. Such a copy overrides the real model and can show up as red shapes in the game. It is rebuilt automatically.",
       "repairHint": "Repaired models go into a separate folder, citadel/guddion_compat, that gameinfo.gi reads before addons, so they win over any mod. The mods themselves are not changed. Undo it in the journal (undo button in the library). Restart the game after repairing.",
       "repaired": "Models repaired: {{count}}",
       "reconnected": "Compatibility package switched back on",

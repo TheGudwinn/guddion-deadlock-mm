@@ -115,27 +115,29 @@ pub async fn repair_cameras(state: State<'_, AppState>) -> Result<crate::game::c
         let dir = g.citadel_dir.join(COMPAT_DIR);
         let package = dir.join(PACKAGE_FILE);
         let legacy = g.addons_dir.join(LEGACY_PACKAGE);
-        let (files, rep) = compat::repair_cameras(&g.citadel_dir.join("pak01_dir.vpk"), &addons, &package, &legacy)?;
-        if rep.fixed.is_empty() {
-            // nothing new to repair; make sure an existing package is still switched on in gameinfo.gi
-            if package.exists() {
-                let journal = Journal::open(&d.journal);
-                let ctx = Ctx { game: &g, staging: &d.staging, backups: &d.backups, journal: &journal, limits: Limits::default() };
-                let gi_old = std::fs::read(&g.gameinfo).map_err(err)?;
-                let text = String::from_utf8(gi_old.clone()).map_err(|_| "gameinfo.gi is not valid UTF-8".to_string())?;
-                match ensure_compat_path(&text, SEARCH_PATH) {
-                    PatchResult::Patched(t) => checks::replace_journaled(&ctx, &format!("repair-camera-{}", checks::stamp()), &g.gameinfo, &gi_old, t.as_bytes()).map_err(err)?,
-                    PatchResult::AlreadyPresent => {}
-                    PatchResult::Unrecognized => return Err("gameinfo.gi has a layout this app cannot edit safely".into()),
+        let (files, rep) = compat::repair_cameras(&g.citadel_dir.join("pak01_dir.vpk"), &addons)?;
+        let journal = Journal::open(&d.journal);
+        let ctx = Ctx { game: &g, staging: &d.staging, backups: &d.backups, journal: &journal, limits: Limits::default() };
+        let batch = format!("repair-camera-{}", checks::stamp());
+
+        // nothing to repair: an old package (made from mods that have changed since) must not stay, it would
+        // override the real models; the first version's file in addons goes too
+        if files.is_empty() {
+            for old_file in [&package, &legacy] {
+                if old_file.exists() {
+                    let old = std::fs::read(old_file).map_err(err)?;
+                    let name = old_file.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
+                    let backup = d.backups.join(format!("{batch}_{name}"));
+                    std::fs::create_dir_all(&d.backups).map_err(err)?;
+                    write_atomic(&backup, &old).map_err(err)?;
+                    journal.record(&batch, Op::DeleteFile { path: old_file.clone(), backup }).map_err(err)?;
+                    std::fs::remove_file(old_file).map_err(err)?;
                 }
             }
             return Ok(rep);
         }
         let refs: Vec<(&str, &[u8])> = files.iter().map(|(p, b)| (p.as_str(), b.as_slice())).collect();
         let bytes = crate::install::vpk::build_vpk(&refs);
-        let journal = Journal::open(&d.journal);
-        let ctx = Ctx { game: &g, staging: &d.staging, backups: &d.backups, journal: &journal, limits: Limits::default() };
-        let batch = format!("repair-camera-{}", checks::stamp());
 
         // gameinfo.gi first: if it cannot be patched, nothing else is written
         let gi_old = std::fs::read(&g.gameinfo).map_err(err)?;
@@ -151,7 +153,9 @@ pub async fn repair_cameras(state: State<'_, AppState>) -> Result<crate::game::c
         }
         if package.exists() {
             let old = std::fs::read(&package).map_err(err)?;
-            checks::replace_journaled(&ctx, &batch, &package, &old, &bytes).map_err(err)?;
+            if old != bytes {
+                checks::replace_journaled(&ctx, &batch, &package, &old, &bytes).map_err(err)?;
+            }
         } else {
             journal.record(&batch, Op::CreateFile { path: package.clone() }).map_err(err)?;
             write_atomic(&package, &bytes).map_err(err)?;

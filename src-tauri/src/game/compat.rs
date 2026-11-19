@@ -147,20 +147,19 @@ pub fn scan(addons: &[ExistingAddon], package: Option<&Path>, game_pak: Option<&
     // model path -> mods (in the order scanned) that contain it
     let mut by_model: BTreeMap<String, Vec<String>> = BTreeMap::new();
     let mut found: BTreeMap<(String, &'static str), Vec<String>> = BTreeMap::new();
-    let mut repaired: BTreeSet<String> = Default::default();
+    // (model, mod file) pairs whose current model is exactly what our package holds, and the package models some mod still needs
+    let mut covered: BTreeSet<(String, String)> = Default::default();
+    let mut supported: BTreeSet<String> = Default::default();
 
-    // our own repairs: the models in the package count as repaired
+    // our own repairs. The package is a copy made from a mod at some point; the mod may have been updated, disabled or removed
+    // since, and then the copy would still win over the real model in the game. So it counts only for a mod whose
+    // model, repaired again now, gives the very same bytes.
+    let mut pkg: BTreeMap<String, Vec<u8>> = BTreeMap::new();
     if let Some(p) = package.filter(|p| p.exists()) {
         if let Ok(d) = read_vpk_entries(p) {
             for e in d.entries.iter().filter(|e| is_hero_model(&e.path)) {
-                // a model counts as repaired only when it checks out against the game's model
-                let good = match (game.as_ref().and_then(|g| g.model(&e.path)), read_entry(p, &d, e)) {
-                    (Some(g), Ok(m)) => analyze(&m, &g).map(|a| !a.needs_repair()).unwrap_or(false),
-                    (None, Ok(_)) => true,
-                    _ => false,
-                };
-                if good {
-                    repaired.insert(e.path.clone());
+                if let Ok(b) = read_entry(p, &d, e) {
+                    pkg.insert(e.path.clone(), b);
                 }
             }
         }
@@ -201,6 +200,14 @@ pub fn scan(addons: &[ExistingAddon], package: Option<&Path>, game_pak: Option<&
             if let Some(g) = game.as_ref().and_then(|g| g.model(&e.path)) {
                 match analyze(&bytes, &g) {
                     Ok(an) => {
+                        if an.needs_repair() {
+                            if let Some(held) = pkg.get(&e.path) {
+                                if patch_model(&bytes, &g, &an).map(|b| &b == held).unwrap_or(false) {
+                                    covered.insert((e.path.clone(), a.file_name.clone()));
+                                    supported.insert(e.path.clone());
+                                }
+                            }
+                        }
                         if let Some(n) = &an.note {
                             rep.details.skipped.push((a.file_name.clone(), e.path.clone(), n.clone()));
                         }
@@ -223,13 +230,17 @@ pub fn scan(addons: &[ExistingAddon], package: Option<&Path>, game_pak: Option<&
 
     let mut fixed: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     for ((model, kind), mods) in found {
-        if repaired.contains(&model) {
-            for m in mods {
-                fixed.entry(m).or_default().insert(model.clone());
-            }
-        } else {
-            rep.findings.push(CompatFinding { kind: kind.into(), severity: "warn", model, mods });
+        let (done, open): (Vec<String>, Vec<String>) = mods.into_iter().partition(|m| covered.contains(&(model.clone(), m.clone())));
+        for m in done {
+            fixed.entry(m).or_default().insert(model.clone());
         }
+        if !open.is_empty() {
+            rep.findings.push(CompatFinding { kind: kind.into(), severity: "warn", model, mods: open });
+        }
+    }
+    // a model in the package that no mod needs any more would replace the real one in the game
+    for model in pkg.keys().filter(|m| !supported.contains(*m)) {
+        rep.findings.push(CompatFinding { kind: "compat_stale".into(), severity: "warn", model: model.clone(), mods: vec![] });
     }
     rep.fixed = fixed.into_iter().map(|(file, models)| FixedMod { file, models: models.into_iter().collect() }).collect();
     for (model, mods) in by_model {
@@ -351,10 +362,11 @@ fn slot(file_name: &str) -> u32 {
     file_name.split("_pak").nth(1).or_else(|| file_name.strip_prefix("pak")).and_then(|r| r.get(..2)).and_then(|d| d.parse().ok()).unwrap_or(99)
 }
 
-/// Builds the new content of the compatibility package: models of the current package that are not
-/// being redone, plus the repaired ones. Nothing is written here.
-pub fn repair_cameras(game_pak: &Path, addons: &[ExistingAddon], package: &Path, legacy: &Path) -> Result<(Vec<(String, Vec<u8>)>, RepairReport), String> {
-    let found = scan(addons, Some(package), Some(game_pak));
+/// Builds the content of the compatibility package from the enabled mods as they are now: one repaired
+/// model for every one that needs it. Nothing from an earlier package is kept, because a copy made from a mod
+/// that was since updated, disabled or removed would override the real model. Nothing is written here.
+pub fn repair_cameras(game_pak: &Path, addons: &[ExistingAddon]) -> Result<(Vec<(String, Vec<u8>)>, RepairReport), String> {
+    let found = scan(addons, None, Some(game_pak));
     let mut rep = RepairReport::default();
     let mut files: Vec<(String, Vec<u8>)> = Vec::new();
     // one entry per model: the mods that need work
@@ -390,21 +402,7 @@ pub fn repair_cameras(game_pak: &Path, addons: &[ExistingAddon], package: &Path,
             Err(why) => skip(&mut rep, &why),
         }
     }
-    // keep what an earlier repair put into the package
-    for package in [package, legacy] {
-        if !package.exists() {
-            continue;
-        }
-        if let Ok(old) = read_vpk_entries(package) {
-            for e in &old.entries {
-                if !files.iter().any(|(p, _)| p == &e.path) {
-                    if let Ok(b) = read_entry(package, &old, e) {
-                        files.push((e.path.clone(), b));
-                    }
-                }
-            }
-        }
-    }
+    files.sort_by(|a, b| a.0.cmp(&b.0));
     Ok((files, rep))
 }
 
@@ -495,7 +493,7 @@ mod tests {
         let game_pak = addons_dir.parent().unwrap().join("pak01_dir.vpk");
         let addons = crate::library::scan::scan_addons(&addons_dir).unwrap();
         let pkg = PathBuf::from(&out).join(PACKAGE_FILE);
-        let (files, rep) = repair_cameras(&game_pak, &addons, &pkg, &PathBuf::from(&out).join(LEGACY_PACKAGE)).unwrap();
+        let (files, rep) = repair_cameras(&game_pak, &addons).unwrap();
         eprintln!("fixed {:?}\nskipped {:?}", rep.fixed, rep.skipped);
         assert!(!files.is_empty());
         let refs: Vec<(&str, &[u8])> = files.iter().map(|(p, b)| (p.as_str(), b.as_slice())).collect();

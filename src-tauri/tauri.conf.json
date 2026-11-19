@@ -1,0 +1,79 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Guddion",
+  "version": "0.1.2",
+  "identifier": "ru.guddion.deadlockmm",
+  "build": {
+    "beforeDevCommand": "pnpm dev",
+    "devUrl": "http://127.0.0.1:1420",
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Guddion",
+        "width": 1494,
+        "height": 884,
+        "dragDropEnabled": false,
+        "minWidth": 760,
+        "minHeight": 520,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "center": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost; object-src 'none'; base-uri 'none'; frame-src 'none'; form-action 'none'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "createUpdaterArtifacts": true,
+    "shortDescription": "Deadlock mod manager",
+    "windows": {
+      "webviewInstallMode": {
+        "type": "offlineInstaller"
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "Russian",
+          "English"
+        ],
+        "displayLanguageSelector": false,
+        "headerImage": "installer/header.bmp",
+        "sidebarImage": "installer/sidebar.bmp",
+        "installerHooks": "installer/hooks.nsh"
+      },
+      "wix": {
+        "language": [
+          "ru-RU",
+          "en-US"
+        ]
+      }
+    },
+    "publisher": "Guddion",
+    "copyright": "Guddion"
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDYyMUVBMDA4MTM3N0QxREEKUldUYTBYY1RDS0FlWWoyNU9MMlFGL0RQeENOYnJ0cXJ5dlExL0xvTkw4TUVPMW1yemxmdXE3dk0K",
+      "endpoints": [
+        "https://github.com/TheGudwinn/guddion-deadlock-mm/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
+    }
+  }
+}

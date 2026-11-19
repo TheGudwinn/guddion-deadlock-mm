@@ -1,0 +1,241 @@
+{
+    "_aMetadata": {
+        "_nRecordCount": 6062,
+        "_bIsComplete": false,
+        "_nPerpage": 3
+    },
+    "_aRecords": [
+        {
+            "_idRow": 650634,
+            "_sModelName": "Mod",
+            "_sSingularTitle": "Mod",
+            "_sIconClasses": "SubmissionType Mod",
+            "_sName": "QOL Lock [INSTANT SAVE\/LOAD UPDATE]",
+            "_sProfileUrl": "https:\/\/gamebanana.com\/mods\/650634",
+            "_tsDateAdded": 1770149407,
+            "_tsDateModified": 1794371049,
+            "_bHasFiles": true,
+            "_aTags": [],
+            "_aPreviewMedia": {
+                "_aImages": [
+                    {
+                        "_sType": "screenshot",
+                        "_sBaseUrl": "https:\/\/images.gamebanana.com\/img\/ss\/mods",
+                        "_sFile": "6995649268824.jpg",
+                        "_sFile220": "220-90_6995649268824.jpg",
+                        "_hFile220": 124,
+                        "_wFile220": 220,
+                        "_sFile530": "530-90_6995649268824.jpg",
+                        "_hFile530": 298,
+                        "_wFile530": 530,
+                        "_sFile100": "100-90_6995649268824.jpg",
+                        "_hFile100": 56,
+                        "_wFile100": 100,
+                        "_sFile800": "800-90_6995649268824.jpg",
+                        "_hFile800": 450,
+                        "_wFile800": 800
+                    },
+                    {
+                        "_sType": "screenshot",
+                        "_sBaseUrl": "https:\/\/images.gamebanana.com\/img\/ss\/mods",
+                        "_sFile": "6a10fb7166650.jpg",
+                        "_sFile100": "100-90_6a10fb7166650.jpg",
+                        "_hFile100": 56,
+                        "_wFile100": 100
+                    }
+                ]
+            },
+            "_aSubmitter": {
+                "_idRow": 5146349,
+                "_sName": "civo",
+                "_bIsOnline": false,
+                "_bHasRipe": false,
+                "_sProfileUrl": "https:\/\/gamebanana.com\/members\/5146349",
+                "_sAvatarUrl": "https:\/\/images.gamebanana.com\/img\/av\/6987b97b0ec01.png",
+                "_sUpicUrl": "https:\/\/images.gamebanana.com\/img\/upic\/698cd2d3158b4.png"
+            },
+            "_aGame": {
+                "_idRow": 20948,
+                "_sName": "Deadlock",
+                "_sProfileUrl": "https:\/\/gamebanana.com\/games\/20948",
+                "_sIconUrl": "https:\/\/images.gamebanana.com\/img\/ico\/games\/6abe8b273abb4.png"
+            },
+            "_aRootCategory": {
+                "_sName": "Quality of Life\/Fixes",
+                "_sProfileUrl": "https:\/\/gamebanana.com\/mods\/cats\/46154",
+                "_sIconUrl": ""
+            },
+            "_sVersion": "4.0.5",
+            "_tsDateUpdated": 1792185473,
+            "_bIsObsolete": false,
+            "_sInitialVisibility": "show",
+            "_bHasContentRatings": false,
+            "_nLikeCount": 307,
+            "_nPostCount": 243,
+            "_bWasFeatured": true,
+            "_nViewCount": 236549,
+            "_bIsOwnedByAccessor": false
+        },
+        {
+            "_idRow": 601444,
+            "_sModelName": "Mod",
+            "_sSingularTitle": "Mod",
+            "_sIconClasses": "SubmissionType Mod",
+            "_sName": "Always Show Passive Items and Actives Icons",
+            "_sProfileUrl": "https:\/\/gamebanana.com\/mods\/601444",
+            "_tsDateAdded": 1750302527,
+            "_tsDateModified": 1793970636,
+            "_bHasFiles": true,
+            "_aTags": [],
+            "_aPreviewMedia": {
+                "_aImages": [
+                    {
+                        "_sType": "screenshot",
+                        "_sBaseUrl": "https:\/\/images.gamebanana.com\/img\/ss\/mods",
+                        "_sCaption": "Redesign Standalone",
+                        "_sFile": "68d65b3427225.jpg",
+                        "_sFile220": "220-90_68d65b3427225.jpg",
+                        "_hFile220": 116,
+                        "_wFile220": 220,
+                        "_sFile530": "530-90_68d65b3427225.jpg",
+                        "_hFile530": 280,
+                        "_wFile530": 530,
+                        "_sFile100": "100-90_68d65b3427225.jpg",
+                        "_hFile100": 53,
+                        "_wFile100": 100
+                    },
+                    {
+                        "_sType": "screenshot",
+                        "_sBaseUrl": "https:\/\/images.gamebanana.com\/img\/ss\/mods",
+                        "_sCaption": "Standalone",
+                        "_sFile": "68537f08d33a0.jpg",
+                        "_sFile100": "100-90_68537f08d33a0.jpg",
+                        "_hFile100": 52,
+                        "_wFile100": 100
+                    }
+                ]
+            },
+            "_aSubmitter": {
+                "_idRow": 4577138,
+                "_sName": "Hanturaya",
+                "_bIsOnline": false,
+                "_bHasRipe": false,
+                "_sProfileUrl": "https:\/\/gamebanana.com\/members\/4577138",
+                "_sAvatarUrl": "https:\/\/images.gamebanana.com\/img\/av\/6863c4559facb.jpg"
+            },
+            "_aGame": {
+                "_idRow": 20948,
+                "_sName": "Deadlock",
+                "_sProfileUrl": "https:\/\/gamebanana.com\/games\/20948",
+                "_sIconUrl": "https:\/\/images.gamebanana.com\/img\/ico\/games\/6abe8b273abb4.png"
+            },
+            "_aRootCategory": {
+                "_sName": "Quality of Life\/Fixes",
+                "_sProfileUrl": "https:\/\/gamebanana.com\/mods\/cats\/46154",
+                "_sIconUrl": ""
+            },
+            "_sVersion": "2v",
+            "_tsDateUpdated": 1793971641,
+            "_bIsObsolete": false,
+            "_sInitialVisibility": "show",
+            "_bHasContentRatings": false,
+            "_nLikeCount": 78,
+            "_nPostCount": 116,
+            "_bWasFeatured": false,
+            "_nViewCount": 154988,
+            "_bIsOwnedByAccessor": false
+        },
+        {
+            "_idRow": 636266,
+            "_sModelName": "Mod",
+            "_sSingularTitle": "Mod",
+            "_sIconClasses": "SubmissionType Mod",
+            "_sName": "Jacket (Billy Overhaul)",
+            "_sProfileUrl": "https:\/\/gamebanana.com\/mods\/636266",
+            "_tsDateAdded": 1764282657,
+            "_tsDateModified": 1791592655,
+            "_bHasFiles": true,
+            "_aTags": [
+                "Software Used: Photoshop",
+                "Software Used: Premiere Pro",
+                "Software Used: Source FilmMaker",
+                "Software Used: RVC"
+            ],
+            "_aPreviewMedia": {
+                "_aImages": [
+                    {
+                        "_sType": "screenshot",
+                        "_sBaseUrl": "https:\/\/images.gamebanana.com\/img\/ss\/mods",
+                        "_sFile": "6ac400d9bd18a.jpg",
+                        "_sFile220": "220-90_6ac400d9bd18a.jpg",
+                        "_hFile220": 124,
+                        "_wFile220": 220,
+                        "_sFile530": "530-90_6ac400d9bd18a.jpg",
+                        "_hFile530": 298,
+                        "_wFile530": 530,
+                        "_sFile100": "100-90_6ac400d9bd18a.jpg",
+                        "_hFile100": 56,
+                        "_wFile100": 100
+                    },
+                    {
+                        "_sType": "screenshot",
+                        "_sBaseUrl": "https:\/\/images.gamebanana.com\/img\/ss\/mods",
+                        "_sFile": "6928d0f723ccf.jpg",
+                        "_sFile100": "100-90_6928d0f723ccf.jpg",
+                        "_hFile100": 56,
+                        "_wFile100": 100
+                    },
+                    {
+                        "_sType": "screenshot",
+                        "_sBaseUrl": "https:\/\/images.gamebanana.com\/img\/ss\/mods",
+                        "_sCaption": "Second image required. Come on, Gamebanana!",
+                        "_sFile": "6928d1173a062.jpg",
+                        "_sFile100": "100-90_6928d1173a062.jpg",
+                        "_hFile100": 110,
+                        "_wFile100": 100
+                    }
+                ]
+            },
+            "_aSubmitter": {
+                "_idRow": 1767800,
+                "_sName": "amperesevere",
+                "_bIsOnline": false,
+                "_bHasRipe": false,
+                "_sProfileUrl": "https:\/\/gamebanana.com\/members\/1767800",
+                "_sAvatarUrl": "https:\/\/images.gamebanana.com\/img\/av\/68ed1415ad5b4.gif"
+            },
+            "_aGame": {
+                "_idRow": 20948,
+                "_sName": "Deadlock",
+                "_sProfileUrl": "https:\/\/gamebanana.com\/games\/20948",
+                "_sIconUrl": "https:\/\/images.gamebanana.com\/img\/ico\/games\/6abe8b273abb4.png"
+            },
+            "_aRootCategory": {
+                "_sName": "Skins",
+                "_sProfileUrl": "https:\/\/gamebanana.com\/mods\/cats\/33295",
+                "_sIconUrl": ""
+            },
+            "_aSubCategory": {
+                "_sName": "Billy",
+                "_sProfileUrl": "https:\/\/gamebanana.com\/mods\/cats\/41491",
+                "_sIconUrl": "https:\/\/images.gamebanana.com\/img\/ico\/ModCategory\/6931461e41ba5.png"
+            },
+            "_sVersion": "1.0.3",
+            "_tsDateUpdated": 1792186815,
+            "_bIsObsolete": false,
+            "_sInitialVisibility": "show",
+            "_bHasContentRatings": false,
+            "_nLikeCount": 150,
+            "_nPostCount": 120,
+            "_bWasFeatured": true,
+            "_aStudio": {
+                "_sName": "The Banished Coven",
+                "_sBannerUrl": "https:\/\/images.gamebanana.com\/img\/banners\/studios\/692d1fa7acfc3.png",
+                "_sProfileUrl": "https:\/\/gamebanana.com\/studios\/38758",
+                "_sFlagUrl": "https:\/\/images.gamebanana.com\/img\/flags\/studios\/692d20273e886.png"
+            },
+            "_nViewCount": 97227,
+            "_bIsOwnedByAccessor": false
+        }
+    ]
+}

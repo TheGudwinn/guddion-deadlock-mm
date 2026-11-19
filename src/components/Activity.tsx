@@ -1,0 +1,40 @@
+import { useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { useExit } from "../lib/motion";
+
+export type ActivityState =
+  | { kind: "progress"; text: string; pct: number | null }
+  | { kind: "ok"; text: string; sub?: string }
+  | { kind: "error"; text: string };
+
+export default function Activity({ state, onDismiss }: { state: ActivityState | null; onDismiss: () => void }) {
+  const { t } = useTranslation();
+  // keep the last message on screen while the toast slides out
+  const last = useRef(state);
+  if (state) last.current = state;
+  const { mounted, closing } = useExit(!!state, 220);
+  const shown = last.current;
+  if (!mounted || !shown) return null;
+  state = shown;
+  const cls = `${state.kind === "error" ? "activity activity-err" : state.kind === "ok" ? "activity activity-ok" : "activity"} ${closing ? "is-closing" : ""}`;
+  return (
+    <div className={cls} role={state.kind === "error" ? "alert" : "status"}>
+      <div className="activity-row">
+        <div>
+          <div className="activity-text">{state.text}</div>
+          {state.kind === "ok" && state.sub && <div className="activity-sub">{state.sub}</div>}
+        </div>
+        {state.kind !== "progress" && (
+          <button className="btn btn-quiet" onClick={onDismiss}>
+            {t("activity.dismiss")}
+          </button>
+        )}
+      </div>
+      {state.kind === "progress" && (
+        <div className={`bar ${state.pct == null ? "indeterminate" : ""}`}>
+          <i style={state.pct == null ? undefined : { width: `${state.pct}%` }} />
+        </div>
+      )}
+    </div>
+  );
+}

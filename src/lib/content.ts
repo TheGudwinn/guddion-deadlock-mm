@@ -6,6 +6,7 @@ export function mergeContent(parts: Content[]): Content | null {
   if (parts.length === 1) return parts[0];
   const kinds = new Map<string, KindCount>();
   const heroes = new Map<string, HeroHit>();
+  const modeled = new Map<string, HeroHit>();
   const folders = new Map<string, number>();
   const sample = new Set<string>();
   for (const p of parts) {
@@ -17,6 +18,10 @@ export function mergeContent(parts: Content[]): Content | null {
       const cur = heroes.get(h.code);
       heroes.set(h.code, cur ? { ...cur, files: cur.files + h.files } : { ...h });
     }
+    for (const h of p.model_heroes ?? []) {
+      const cur = modeled.get(h.code);
+      modeled.set(h.code, cur ? { ...cur, files: cur.files + h.files } : { ...h });
+    }
     for (const [f, n] of p.folders) folders.set(f, (folders.get(f) ?? 0) + n);
     for (const s of p.sample) sample.add(s);
   }
@@ -25,6 +30,7 @@ export function mergeContent(parts: Content[]): Content | null {
     total_bytes: parts.reduce((s, p) => s + p.total_bytes, 0),
     kinds: [...kinds.values()].sort((a, b) => b.count - a.count),
     heroes: [...heroes.values()].sort((a, b) => b.files - a.files).slice(0, 4),
+    model_heroes: [...modeled.values()].sort((a, b) => b.files - a.files).slice(0, 4),
     sample: [...sample].sort().slice(0, 80),
     folders: [...folders.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8),
   };

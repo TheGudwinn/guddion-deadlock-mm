@@ -267,6 +267,23 @@ impl Kv3 {
         }
     }
 
+    /// Whether `set_i32` can rewrite this value.
+    pub fn writable_i32(&self, v: &Val) -> bool {
+        matches!((v.ty, v.loc), (I32, Some(Loc { aux: true, lane: 2, .. })))
+    }
+
+    pub fn set_i32(&mut self, v: &Val, x: i32) -> bool {
+        let Some(l) = v.loc.filter(|l| l.aux && l.lane == 2 && v.ty == I32) else { return false };
+        let base = self.l1.i.0;
+        match self.b1.get_mut(base + l.off..base + l.off + 4) {
+            Some(s) => {
+                s.copy_from_slice(&x.to_le_bytes());
+                true
+            }
+            None => false,
+        }
+    }
+
     /// The block with the changed first buffer; everything else is byte for byte as it was.
     pub fn finish(&self) -> Vec<u8> {
         let packed = pack(self.method, &self.b1);

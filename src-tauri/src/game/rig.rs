@@ -6,7 +6,7 @@
 //! that keep the root unturned the camera then sits in the wrong place and does not follow the hero.
 //! The fix is a change of basis of every point on the root bone: position and rotation are
 //! multiplied by the root bone's rotation. Nothing else in the model is touched.
-use super::kv3::{Kv3, Val};
+use super::kv3::{Kv3, Node, Val};
 
 /// Points the camera and the aiming code use. The basis is judged from these.
 pub const CAMERA_POINTS: [&str; 13] = [
@@ -182,6 +182,117 @@ pub fn convert_to_model_axes(k: &mut Kv3, rig: &Rig) -> usize {
             rot = rot.map(|x| x / len);
         }
         let ok = a.off_val.iter().zip(off).all(|(v, x)| k.set(v, x)) && a.rot_val.iter().zip(rot).all(|(v, x)| k.set(v, x));
+        changed += usize::from(ok);
+    }
+    changed
+}
+
+/// IK target bones (`leg_L_IKTARGET`, ...) are driven by the game's animations in the space of their parent in
+/// the game's skeleton. A skin made for an older skeleton hangs them elsewhere (or turned), and the
+/// animations then put the legs and arms in the wrong place. Their parent and bind transform are taken from
+/// the game's skeleton. These bones carry no mesh, so nothing that is drawn is moved by this.
+pub struct IkFix {
+    pub name: String,
+    new_parent: i32,
+    parent_val: Val,
+    pos: [f64; 3],
+    pos_val: [Val; 3],
+    rot: [f64; 4],
+    rot_val: [Val; 4],
+}
+
+struct Bones {
+    names: Vec<String>,
+    parents: Vec<i32>,
+    parent_vals: Vec<Val>,
+    pos: Vec<[f64; 3]>,
+    pos_vals: Vec<Vec<Val>>,
+    rot: Vec<[f64; 4]>,
+    rot_vals: Vec<Vec<Val>>,
+}
+
+fn read_bones(k: &Kv3) -> Result<Bones, String> {
+    let tree = k.tree()?;
+    let ms = tree.get("m_modelSkeleton").ok_or("no model skeleton")?;
+    let names: Vec<String> = ms.get("m_boneName").ok_or("no bone names")?.items().iter().map(|n| n.str().unwrap_or("").to_string()).collect();
+    let parent_vals: Vec<Val> = ms.get("m_nParent").ok_or("no parents")?.items().iter().filter_map(Node::val).collect();
+    let parents = parent_vals.iter().map(|v| k.num(v).map(|x| x as i32).ok_or("parent index")).collect::<Result<Vec<_>, _>>()?;
+    let rows = |key: &str, n: usize| -> Result<(Vec<Vec<f64>>, Vec<Vec<Val>>), String> {
+        let mut nums = Vec::new();
+        let mut valv = Vec::new();
+        for item in ms.get(key).ok_or(format!("no {key}"))?.items() {
+            let v: Vec<Val> = item.items().iter().filter_map(Node::val).collect();
+            let x: Vec<f64> = v.iter().filter_map(|x| k.num(x)).collect();
+            if v.len() != n || x.len() != n {
+                return Err(format!("{key} entry is not {n} numbers"));
+            }
+            nums.push(x);
+            valv.push(v);
+        }
+        Ok((nums, valv))
+    };
+    let (pos, pos_vals) = rows("m_bonePosParent", 3)?;
+    let (rot, rot_vals) = rows("m_boneRotParent", 4)?;
+    if [parents.len(), pos.len(), rot.len()].iter().any(|n| *n != names.len()) {
+        return Err("skeleton channels differ in length".into());
+    }
+    Ok(Bones {
+        names,
+        parents,
+        parent_vals,
+        pos: pos.into_iter().map(|v| [v[0], v[1], v[2]]).collect(),
+        pos_vals,
+        rot: rot.into_iter().map(|v| [v[0], v[1], v[2], v[3]]).collect(),
+        rot_vals,
+    })
+}
+
+fn is_ik_target(name: &str) -> bool {
+    name.to_ascii_lowercase().ends_with("_iktarget")
+}
+
+/// IK target bones of `model` whose parent or bind transform is not the game's.
+pub fn ik_fixes(model: &Kv3, game: &Kv3) -> Result<Vec<IkFix>, String> {
+    let (m, g) = (read_bones(model)?, read_bones(game)?);
+    let parent_name = |b: &Bones, i: usize| (b.parents[i] >= 0).then(|| b.names.get(b.parents[i] as usize).cloned()).flatten();
+    let mut out = Vec::new();
+    for (i, name) in m.names.iter().enumerate().filter(|(_, n)| is_ik_target(n)) {
+        let Some(j) = g.names.iter().position(|n| n == name) else { continue };
+        let Some(gp) = parent_name(&g, j) else { continue };
+        let Some(new_parent) = m.names.iter().position(|n| *n == gp) else { continue };
+        let same_parent = parent_name(&m, i).as_deref() == Some(gp.as_str());
+        let dot: f64 = m.rot[i].iter().zip(&g.rot[j]).map(|(a, b)| a * b).sum();
+        // q and -q are the same rotation
+        let same_rot = dot.abs() > 0.9999;
+        let same_pos = close(&m.pos[i], &g.pos[j], 0.01);
+        if same_parent && same_rot && same_pos {
+            continue;
+        }
+        // only what can be rewritten in place counts; the rest is left as the mod made it
+        if m.pos_vals[i].len() != 3 || m.rot_vals[i].len() != 4 || !model.writable_i32(&m.parent_vals[i]) || !m.pos_vals[i].iter().chain(&m.rot_vals[i]).all(|v| model.writable(v)) {
+            continue;
+        }
+        out.push(IkFix {
+            name: name.clone(),
+            new_parent: new_parent as i32,
+            parent_val: m.parent_vals[i],
+            pos: g.pos[j],
+            pos_val: [m.pos_vals[i][0], m.pos_vals[i][1], m.pos_vals[i][2]],
+            rot: g.rot[j],
+            rot_val: [m.rot_vals[i][0], m.rot_vals[i][1], m.rot_vals[i][2], m.rot_vals[i][3]],
+        });
+    }
+    Ok(out)
+}
+
+/// Applies the fixes; the number of bones changed.
+pub fn apply_ik_fixes(k: &mut Kv3, fixes: &[IkFix]) -> usize {
+    let mut changed = 0;
+    for f in fixes {
+        if !k.writable_i32(&f.parent_val) || !f.pos_val.iter().chain(f.rot_val.iter()).all(|v| k.writable(v)) {
+            continue;
+        }
+        let ok = k.set_i32(&f.parent_val, f.new_parent) && f.pos_val.iter().zip(f.pos).all(|(v, x)| k.set(v, x)) && f.rot_val.iter().zip(f.rot).all(|(v, x)| k.set(v, x));
         changed += usize::from(ok);
     }
     changed

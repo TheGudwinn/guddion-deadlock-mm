@@ -13,7 +13,8 @@
     "performance": "Performance",
     "fixes": "Fixes",
     "collapse": "Collapse sidebar",
-    "expand": "Expand sidebar"
+    "expand": "Expand sidebar",
+    "skins": "Hero skins"
   },
   "game": {
     "found": "Game found",
@@ -599,6 +600,8 @@
       "camera_interface_outdated": "Camera list differs from the game",
       "camera_interface_outdated_text": "The model has camera data, but not the list of the current game model (extra or missing points). The repair puts the game's camera list in.",
       "camera_basis_rotated": "Camera in turned axes: does not follow the hero",
+      "camera_skeleton_ik": "Skeleton is from an older game version: limbs may twist",
+      "camera_skeleton_ik_text": "The leg and arm target bones of this model hang differently from the game's skeleton, so the game's animations place the legs and arms wrongly. The repair takes their parent and position from the game's skeleton; the mesh is not touched.",
       "camera_basis_rotated_text": "The camera points are written in the root bone's axes, turned compared with the game's model. The camera then stays in place instead of following the hero. The repair converts the points to model axes."
     },
     "fix_patch_gameinfo": "Fix",
@@ -768,5 +771,36 @@
     "updating": "Updating",
     "updated": "Updated",
     "failed": "Failed"
+  },
+  "skins": {
+    "title": "Hero skins",
+    "subtitle": "Skins installed for each hero, and how the hero looks in the game right now.",
+    "search": "Search heroes",
+    "default": "Default",
+    "defaultText": "The game's own model",
+    "wearing": "Wearing",
+    "count_one": "{{count}} skin",
+    "count_other": "{{count}} skins",
+    "worn": "In the game now",
+    "on": "On, overridden by a lower slot",
+    "off": "Off",
+    "enable": "Enable",
+    "disable": "Disable",
+    "none": "No skins for this hero yet.",
+    "browse": "Browse the catalog",
+    "preview": "3D preview",
+    "loading": "Reading the model...",
+    "variants": "Variants",
+    "previewFailed": "The model cannot be shown",
+    "controls": "Drag to turn, wheel to zoom, right button to move",
+    "resetView": "Reset view",
+    "noGame": "Game not found",
+    "noGameText": "Set the game folder in Settings to see heroes.",
+    "err": {
+      "no_model": "This mod has no model for this hero.",
+      "no_base_model": "The game has no model for this hero.",
+      "addon_missing": "The mod file is missing.",
+      "game_not_found": "Game not found."
+    }
   }
 }

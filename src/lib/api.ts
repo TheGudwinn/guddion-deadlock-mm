@@ -66,6 +66,8 @@ export type Content = {
   total_bytes: number;
   kinds: KindCount[];
   heroes: HeroHit[];
+  /** Heroes whose model the files replace (skins), unlike voice packs or particles that only name a hero. */
+  model_heroes?: HeroHit[];
   sample: string[];
   folders: [string, number][];
 };

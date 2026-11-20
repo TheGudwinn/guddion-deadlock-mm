@@ -59,6 +59,7 @@ pub fn run() {
             commands::mod_details,
             commands::list_categories,
             commands::hero_portraits,
+            commands::hero_model,
             commands::enqueue_install,
             commands::list_queue,
             commands::pause_download,

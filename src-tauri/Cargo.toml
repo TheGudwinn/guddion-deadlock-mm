@@ -40,6 +40,7 @@ sevenz-rust2 = "0.25.0"
 unrar = "0.5.8"
 tauri-plugin-dialog = "2.8.4"
 tauri-plugin-updater = "2"
+source2-model = { path = "source2-model" }
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
@@ -49,6 +50,34 @@ lto = true
 opt-level = 3
 panic = "abort"
 strip = true
+
+# The model decoder (textures, meshes) is slow without optimization; the rest of the app stays quick to build.
+[profile.dev.package.source2-model]
+opt-level = 3
+[profile.dev.package.image]
+opt-level = 3
+[profile.dev.package.png]
+opt-level = 3
+[profile.dev.package.fdeflate]
+opt-level = 3
+[profile.dev.package.flate2]
+opt-level = 3
+[profile.dev.package.miniz_oxide]
+opt-level = 3
+[profile.dev.package.texture2ddecoder]
+opt-level = 3
+[profile.dev.package.lz4_flex]
+opt-level = 3
+[profile.dev.package.zstd]
+opt-level = 3
+[profile.dev.package.zstd-safe]
+opt-level = 3
+[profile.dev.package.zstd-sys]
+opt-level = 3
+[profile.dev.package.meshopt]
+opt-level = 3
+[profile.dev.package.serde_json]
+opt-level = 3
 
 [dev-dependencies]
 base64 = "0.23.1"

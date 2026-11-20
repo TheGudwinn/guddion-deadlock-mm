@@ -39,6 +39,12 @@ const paths: Record<string, ReactNode> = {
       <circle cx="12" cy="17" r="1.1" />
     </>
   ),
+  skins: (
+    <>
+      <circle cx="12" cy="7.5" r="3" />
+      <path d="M5 20c.4-4 3.2-6.5 7-6.5s6.6 2.5 7 6.5" />
+    </>
+  ),
   fixes: <path d="M14.5 5.5a4 4 0 0 0-4.7 5.1L4.6 15.8a1.6 1.6 0 0 0 2.3 2.3l5.2-5.2a4 4 0 0 0 5.1-4.7l-2.4 2.4-2-.5-.5-2 2.2-2.2Z" />,
   play: <path d="M8 5.5v13l10.5-6.5L8 5.5Z" />,
   trend: <path d="M3 17l6-6 4 4 8-8M15 7h6v6" />,

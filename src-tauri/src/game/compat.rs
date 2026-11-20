@@ -22,7 +22,7 @@ const CAMERA_MARK: &[u8] = b"AttachmentCameraData";
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 pub struct CompatFinding {
-    /// `camera_interface_missing` | `camera_interface_outdated` | `camera_basis_rotated` | `model_overlap` | `package_inactive`
+    /// `camera_interface_missing` | `camera_interface_outdated` | `camera_basis_rotated` | `camera_skeleton_ik` | `model_overlap` | `package_inactive`
     pub kind: String,
     pub severity: &'static str,
     pub model: String,
@@ -78,13 +78,15 @@ pub enum Cam {
 pub struct Analysis {
     pub cam: Cam,
     pub basis: Basis,
+    /// IK target bones hung differently from the game's skeleton.
+    pub ik_bones: usize,
     /// Why the camera points could not be compared, when they could not.
     pub note: Option<String>,
 }
 
 impl Analysis {
     pub fn needs_repair(&self) -> bool {
-        self.cam != Cam::Ok || self.basis == Basis::Rotated
+        self.cam != Cam::Ok || self.basis == Basis::Rotated || self.ik_bones > 0
     }
 }
 
@@ -101,6 +103,12 @@ fn first_rig(res: &[u8]) -> Result<rig::Rig, String> {
     let t = block_table(res).ok_or("resource header")?;
     let (_, start, size) = *t.iter().find(|b| b.0 == *b"MDAT").ok_or("no mesh data")?;
     rig::read_rig(&Kv3::open(&res[start..start + size])?)
+}
+
+fn ik_fixes_of(model: &[u8], game: &[u8]) -> Result<Vec<rig::IkFix>, String> {
+    let m = Kv3::open(data_block(model).ok_or("no data block")?)?;
+    let g = Kv3::open(data_block(game).ok_or("no data block")?)?;
+    rig::ik_fixes(&m, &g)
 }
 
 /// Compares a model with the game's model at the same path.
@@ -122,7 +130,8 @@ pub fn analyze(model: &[u8], game: &[u8]) -> Result<Analysis, String> {
         (Err(e), _) => (Basis::Unknown, Some(format!("mesh data: {e}"))),
         (_, Err(e)) => (Basis::Unknown, Some(format!("game mesh data: {e}"))),
     };
-    Ok(Analysis { cam, basis, note })
+    let ik_bones = ik_fixes_of(model, game).map(|f| f.len()).unwrap_or(0);
+    Ok(Analysis { cam, basis, ik_bones, note })
 }
 
 /// Opens the game's `pak01_dir.vpk` for comparisons.
@@ -219,6 +228,9 @@ pub fn scan(addons: &[ExistingAddon], package: Option<&Path>, game_pak: Option<&
                         if an.basis == Basis::Rotated {
                             found.entry((e.path.clone(), "camera_basis_rotated")).or_default().push(a.file_name.clone());
                         }
+                        if an.ik_bones > 0 {
+                            found.entry((e.path.clone(), "camera_skeleton_ik")).or_default().push(a.file_name.clone());
+                        }
                     }
                     Err(why) => skip(&mut rep, why),
                 }
@@ -228,9 +240,18 @@ pub fn scan(addons: &[ExistingAddon], package: Option<&Path>, game_pak: Option<&
         }
     }
 
+    // The package replaces the model whatever mod would have won. A mod that loses to a repaired mod of the
+    // same model (higher slot) is covered as well: its copy is never used, and it need not be repaired.
+    let mut winning_slot: BTreeMap<&str, u32> = BTreeMap::new();
+    for (model, file) in &covered {
+        let e = winning_slot.entry(model.as_str()).or_insert(u32::MAX);
+        *e = (*e).min(slot(file));
+    }
     let mut fixed: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
     for ((model, kind), mods) in found {
-        let (done, open): (Vec<String>, Vec<String>) = mods.into_iter().partition(|m| covered.contains(&(model.clone(), m.clone())));
+        let (done, open): (Vec<String>, Vec<String>) = mods
+            .into_iter()
+            .partition(|m| covered.contains(&(model.clone(), m.clone())) || winning_slot.get(model.as_str()).is_some_and(|w| slot(m) > *w));
         for m in done {
             fixed.entry(m).or_default().insert(model.clone());
         }
@@ -334,6 +355,16 @@ pub fn patch_model(model: &[u8], game: &[u8], an: &Analysis) -> Result<Vec<u8>, 
             out = replace_block_at(&out, i, &k.finish())?;
         }
     }
+    if an.ik_bones > 0 {
+        let blk = data_block(&out).ok_or("no data block")?;
+        let mut k = Kv3::open(blk)?;
+        let fixes = rig::ik_fixes(&k, &Kv3::open(data_block(game).ok_or("no data block")?)?)?;
+        if rig::apply_ik_fixes(&mut k, &fixes) != fixes.len() {
+            return Err("the skeleton cannot be rewritten in place".into());
+        }
+        let idx = block_table(&out).and_then(|t| t.iter().rposition(|b| b.0 == *b"DATA")).ok_or("no data block")?;
+        out = replace_block_at(&out, idx, &k.finish())?;
+    }
     if an.cam != Cam::Ok {
         let game_block = camera_block(&kv_of(game)?).ok_or("the game's model has no camera data")?;
         let blk = data_block(&out).ok_or("no data block")?;
@@ -344,7 +375,7 @@ pub fn patch_model(model: &[u8], game: &[u8], an: &Analysis) -> Result<Vec<u8>, 
     }
     // read it back the way the game will
     let again = analyze(&out, game)?;
-    if again.cam != Cam::Ok || again.basis == Basis::Rotated {
+    if again.cam != Cam::Ok || again.basis == Basis::Rotated || again.ik_bones > 0 {
         return Err(format!("the result does not read back ({again:?})"));
     }
     Ok(out)
@@ -483,6 +514,31 @@ mod tests {
         assert!(r.findings.is_empty());
         assert_eq!(r.details.hero_models, 1);
         assert_eq!(r.details.skipped.len(), 1);
+    }
+
+
+    #[test]
+    fn real_timing() {
+        let Ok(dir) = std::env::var("DEADLOCK_ADDONS") else { return };
+        let addons_dir = PathBuf::from(dir);
+        let game_pak = addons_dir.parent().unwrap().join("pak01_dir.vpk");
+        let t = std::time::Instant::now();
+        let addons = crate::library::scan::scan_addons(&addons_dir).unwrap();
+        eprintln!("scan cold: {:?} ({} addons)", t.elapsed(), addons.len());
+        let t = std::time::Instant::now();
+        let addons = crate::library::scan::scan_addons(&addons_dir).unwrap();
+        eprintln!("scan warm: {:?}", t.elapsed());
+        let t = std::time::Instant::now();
+        for a in &addons {
+            if let Ok(e) = &a.entries {
+                let _ = crate::library::describe::describe(e);
+            }
+        }
+        eprintln!("describe: {:?}", t.elapsed());
+        let t = std::time::Instant::now();
+        let pkg = addons_dir.parent().unwrap().join("guddion_compat/pak01_dir.vpk");
+        let rep = scan(&addons, Some(&pkg), Some(&game_pak));
+        eprintln!("compat scan: {:?} findings={}", t.elapsed(), rep.findings.len()); for f in &rep.findings { eprintln!("FINDING {f:?}"); } eprintln!("FIXED {:?}", rep.fixed);
     }
 
     /// Repairs the real mods into a package under `REPAIR_OUT`; the game folder is only read.

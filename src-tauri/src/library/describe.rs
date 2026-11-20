@@ -83,6 +83,9 @@ pub struct Content {
     pub kinds: Vec<KindCount>,
     /// Heroes the files belong to, most files first (at most 4).
     pub heroes: Vec<HeroHit>,
+    /// Heroes whose own model (`models/heroes*/<hero>/*.vmdl_c`) the files replace: the real skins. Voice packs,
+    /// particles and card art also name a hero, but do not change how it looks.
+    pub model_heroes: Vec<HeroHit>,
     /// Up to `SAMPLE` paths, sorted, so the user can see what is inside.
     pub sample: Vec<String>,
     /// Top-level folders (`models`, `materials`, ...) with file counts.
@@ -165,6 +168,7 @@ pub fn describe(files: &[VpkFile]) -> Content {
     let mut by_kind: BTreeMap<Kind, (usize, u64)> = BTreeMap::new();
     let mut strong: HashMap<String, usize> = HashMap::new();
     let mut weak: HashMap<String, usize> = HashMap::new();
+    let mut modeled: HashMap<String, usize> = HashMap::new();
     let mut folders: BTreeMap<String, usize> = BTreeMap::new();
     let mut total_bytes = 0u64;
 
@@ -176,7 +180,12 @@ pub fn describe(files: &[VpkFile]) -> Content {
         let top = f.path.split('/').next().filter(|_| f.path.contains('/')).unwrap_or("(root)");
         *folders.entry(top.to_ascii_lowercase()).or_default() += 1;
         match hero_of(&f.path) {
-            Some((h, true)) => *strong.entry(h).or_default() += 1,
+            Some((h, true)) => {
+                if f.path.to_ascii_lowercase().starts_with("models/heroes") && f.path.to_ascii_lowercase().ends_with(".vmdl_c") {
+                    *modeled.entry(h.clone()).or_default() += 1;
+                }
+                *strong.entry(h).or_default() += 1
+            }
             Some((h, false)) => *weak.entry(h).or_default() += 1,
             None => {}
         }
@@ -187,6 +196,9 @@ pub fn describe(files: &[VpkFile]) -> Content {
     let mut heroes: Vec<HeroHit> = source.into_iter().map(|(code, files)| HeroHit { name: hero_name(&code), code, files }).collect();
     heroes.sort_by(|a, b| b.files.cmp(&a.files).then_with(|| a.code.cmp(&b.code)));
     heroes.truncate(MAX_HEROES);
+    let mut model_heroes: Vec<HeroHit> = modeled.into_iter().map(|(code, files)| HeroHit { name: hero_name(&code), code, files }).collect();
+    model_heroes.sort_by(|a, b| b.files.cmp(&a.files).then_with(|| a.code.cmp(&b.code)));
+    model_heroes.truncate(MAX_HEROES);
 
     let mut kinds: Vec<KindCount> =
         by_kind.into_iter().map(|(k, (count, bytes))| KindCount { kind: k.key().to_string(), count, bytes }).collect();
@@ -202,7 +214,7 @@ pub fn describe(files: &[VpkFile]) -> Content {
     }
     let sample = sample.into_iter().take(SAMPLE).map(str::to_string).collect();
 
-    Content { total_files: files.len(), total_bytes, kinds, heroes, sample, folders }
+    Content { total_files: files.len(), total_bytes, kinds, heroes, model_heroes, sample, folders }
 }
 
 #[cfg(test)]

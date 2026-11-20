@@ -51,6 +51,19 @@ impl Db {
             ..Settings::default()
         };
 
+        // A server left behind by a run that was killed (crash, forced quit, update restart) keeps the data
+        // folder locked: starting a second one then waits for its full timeout and fails. Use the live one
+        // when it answers, else clear it away.
+        if let Some((pid, port)) = leftover_server(&pg_dir.join("data")).await {
+            let url = format!("postgres://{}:{}@127.0.0.1:{port}/{DB_NAME}", settings.username, settings.password);
+            let connect = PgPoolOptions::new().max_connections(5).acquire_timeout(std::time::Duration::from_secs(3)).connect(&url);
+            if let Ok(pool) = connect.await {
+                sqlx::migrate!("./migrations").run(&pool).await?;
+                return Ok(Self { pool, pg: PostgreSQL::new(settings) });
+            }
+            let _ = std::process::Command::new("taskkill").args(["/PID", &pid.to_string(), "/T", "/F"]).creation_flags_hidden().output();
+        }
+
         let mut pg = PostgreSQL::new(settings);
         pg.setup().await.map_err(|e| DbError::Embedded(e.to_string()))?;
         pg.start().await.map_err(|e| DbError::Embedded(e.to_string()))?;
@@ -72,6 +85,38 @@ impl Db {
     pub async fn stop(self) -> Result<(), DbError> {
         self.pool.close().await;
         self.pg.stop().await.map_err(|e| DbError::Embedded(e.to_string()))
+    }
+}
+
+/// The port of a server still running on `data`, per its `postmaster.pid`. A pid file whose process is gone
+/// is ignored (the server's own start-up clears it); a process that is alive but unusable is stopped.
+async fn leftover_server(data: &Path) -> Option<(u32, u16)> {
+    let text = std::fs::read_to_string(data.join("postmaster.pid")).ok()?;
+    let mut lines = text.lines();
+    let pid: u32 = lines.next()?.trim().parse().ok()?;
+    let port: u16 = lines.nth(2)?.trim().parse().ok()?;
+    let alive = tokio::task::spawn_blocking(move || {
+        std::process::Command::new("tasklist").args(["/FI", &format!("PID eq {pid}"), "/NH"]).creation_flags_hidden().output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).contains(&pid.to_string()))
+            .unwrap_or(false)
+    })
+    .await
+    .unwrap_or(false);
+    alive.then_some((pid, port))
+}
+
+trait HiddenWindow {
+    fn creation_flags_hidden(&mut self) -> &mut Self;
+}
+impl HiddenWindow for std::process::Command {
+    #[cfg(windows)]
+    fn creation_flags_hidden(&mut self) -> &mut Self {
+        use std::os::windows::process::CommandExt;
+        self.creation_flags(0x0800_0000)
+    }
+    #[cfg(not(windows))]
+    fn creation_flags_hidden(&mut self) -> &mut Self {
+        self
     }
 }
 

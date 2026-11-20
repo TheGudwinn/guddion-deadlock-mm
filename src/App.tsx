@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { listen } from "@tauri-apps/api/event";
@@ -43,8 +43,9 @@ import Settings from "./features/settings/Settings";
 import Downloads from "./features/downloads/Downloads";
 import Performance from "./features/performance/Performance";
 import Fixes from "./features/fixes/Fixes";
+const Skins = lazy(() => import("./features/skins/Skins")); // pulls in the 3D engine, so it loads on first visit
 
-type View = "home" | "catalog" | "library" | "profiles" | "downloads" | "performance" | "fixes" | "settings";
+type View = "home" | "catalog" | "library" | "profiles" | "downloads" | "performance" | "fixes" | "skins" | "settings";
 
 export default function App() {
   const { t } = useTranslation();
@@ -157,18 +158,15 @@ export default function App() {
   }, [activity]);
 
   const refresh = useCallback(async () => {
-    const [mods, f, c, l, pr] = await Promise.all([
-      call<InstalledMod[]>("list_installed").catch(() => null),
-      call<ForeignAddon[]>("list_foreign_addons").catch(() => []),
-      call<AddonContent[]>("describe_installed").catch(() => []),
-      call<LastAction | null>("last_action").catch(() => null),
-      call<Profile[]>("list_profiles").catch(() => null),
+    // Each list is shown as soon as it is read: the database behind some of them starts on first use,
+    // and the folder scan must not wait for it.
+    await Promise.all([
+      call<InstalledMod[]>("list_installed").catch(() => null).then(setInstalled),
+      call<ForeignAddon[]>("list_foreign_addons").catch(() => []).then(setForeign),
+      call<AddonContent[]>("describe_installed").catch(() => []).then(setContents),
+      call<LastAction | null>("last_action").catch(() => null).then(setLast),
+      call<Profile[]>("list_profiles").catch(() => null).then(setProfiles),
     ]);
-    setProfiles(pr);
-    setInstalled(mods);
-    setForeign(f);
-    setContents(c);
-    setLast(l);
   }, []);
 
   const detectGame = useCallback(() => call<GameInstall | null>("detect_game").then(setGame, () => setGame(null)), []);
@@ -587,7 +585,7 @@ export default function App() {
     window.addEventListener("resize", place);
     return () => window.removeEventListener("resize", place);
   }, [view, look.rail]);
-  const order: View[] = ["home", "catalog", "profiles", "library", "downloads", "performance", "fixes", "settings"];
+  const order: View[] = ["home", "catalog", "profiles", "library", "skins", "downloads", "performance", "fixes", "settings"];
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -596,7 +594,7 @@ export default function App() {
         const box = searchBox.current ?? document.querySelector<HTMLInputElement>("input[data-page-search]");
         box?.focus();
         box?.select();
-      } else if (e.altKey && !e.ctrlKey && /^[1-8]$/.test(e.key)) {
+      } else if (e.altKey && !e.ctrlKey && /^[1-9]$/.test(e.key)) {
         e.preventDefault();
         setView(order[Number(e.key) - 1]);
       }
@@ -631,6 +629,7 @@ export default function App() {
             ["catalog", "catalog", 0],
             ["profiles", "profiles", 0],
             ["library", "library", modReport?.updates.length ?? 0],
+            ["skins", "skins", 0],
             ["downloads", "downloads", activeDownloads.length],
             ["performance", "performance", 0],
             ["fixes", "fixes", 0],
@@ -793,6 +792,8 @@ export default function App() {
               void refresh();
             }}
           />
+        ) : view === "skins" ? (
+          <Suspense fallback={null}><Skins mods={installed} groups={groups} known={known} contents={contents} gameFound={!!game} onToggle={toggle} onToggleForeign={toggleForeign} onGoCatalog={() => setView("catalog")} /></Suspense>
         ) : view === "performance" ? (
           <Performance />
         ) : view === "fixes" ? (

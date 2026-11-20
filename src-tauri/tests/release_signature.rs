@@ -1,5 +1,5 @@
 //! Checks that the signature of a locally built installer matches the public key in tauri.conf.json.
-//! Needs a prior `scripts/build-local.ps1`, so it is ignored by default:
+//! Needs a prior `pnpm build:local`, so it is ignored by default:
 //! `cargo test --test release_signature -- --ignored`
 use base64::{engine::general_purpose::STANDARD, Engine};
 use minisign_verify::{PublicKey, Signature};

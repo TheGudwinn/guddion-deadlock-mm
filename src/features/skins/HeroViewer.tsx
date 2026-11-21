@@ -39,57 +39,6 @@ function disposeTree(root: THREE.Object3D) {
   });
 }
 
-type Effect = { flags?: Record<string, number>; floats?: Record<string, number>; vectors?: Record<string, number[]> };
-type Extras = { source2Effect?: Effect; outline?: { tint?: number[] | null } };
-
-const lin = (v: number[] | undefined, k = 1) => new THREE.Color().setRGB((v?.[0] ?? 1) * k, (v?.[1] ?? 1) * k, (v?.[2] ?? 1) * k, THREE.LinearSRGBColorSpace);
-
-/** The game's solid-colour outline, drawn as a slightly inflated back-face copy of the mesh. */
-function outlines(model: THREE.Object3D, height: number): THREE.Mesh[] {
-  const made: THREE.Mesh[] = [];
-  const thick = height * 0.002;
-  model.traverse((o) => {
-    const m = o as THREE.Mesh;
-    if (!m.isMesh || Array.isArray(m.material)) return;
-    const ex = m.material.userData as Extras;
-    const fx = ex.source2Effect;
-    const tint = ex.outline?.tint;
-    if (!fx?.flags?.F_SOLID_COLOR_OUTLINE || !tint) return;
-    const lit = !!fx.flags.F_SELF_ILLUM;
-    const col = lit ? fx.vectors?.g_vSelfIllumTint1 ?? tint : tint;
-    const peak = Math.max(...col.slice(0, 3));
-    if (peak < 0.25 && !lit) return; // the game's dark outlines add nothing here
-    const k = peak > 0 ? 1.6 / peak : 1;
-    const mat = new THREE.MeshBasicMaterial({ color: lin(col, lit || peak > 0.6 ? k * 0.7 : 1), side: THREE.BackSide, toneMapped: false });
-    mat.onBeforeCompile = (sh) => {
-      sh.vertexShader = sh.vertexShader.replace("#include <skinning_vertex>", `#include <skinning_vertex>
-#ifdef USE_SKINNING
-transformed += normalize(objectNormal) * ${thick.toFixed(5)};
-#else
-transformed += normalize(normal) * ${thick.toFixed(5)};
-#endif`);
-    };
-    const skinned = m as THREE.SkinnedMesh;
-    let copy: THREE.Mesh;
-    if (skinned.isSkinnedMesh) {
-      const sk = new THREE.SkinnedMesh(m.geometry, mat);
-      sk.bind(skinned.skeleton, skinned.bindMatrix);
-      copy = sk;
-    } else {
-      copy = new THREE.Mesh(m.geometry, mat);
-    }
-    copy.position.copy(m.position);
-    copy.quaternion.copy(m.quaternion);
-    copy.scale.copy(m.scale);
-    copy.frustumCulled = false;
-    copy.visible = m.visible;
-    copy.userData.of = m;
-    made.push(copy);
-    m.parent?.add(copy);
-  });
-  return made;
-}
-
 type Choice = { name: string; bit: number };
 type BodyGroup = { name: string; choices: Choice[] };
 
@@ -236,6 +185,18 @@ export default function HeroViewer({ hero, codes, addon }: Props) {
             }
           }
         });
+        // Effect cards (flying paper, debris, shields) are cut out and animated by the game's own shaders
+        // (jittered vertices, scrolling translucency masks). A plain material draws them as solid slabs that
+        // cover the hero, so they are left out of the preview.
+        const cards: THREE.Object3D[] = [];
+        model.traverse((o) => {
+          const m = o as THREE.Mesh;
+          if (!m.isMesh || Array.isArray(m.material)) return;
+          const mat = m.material as THREE.Material;
+          const fx = (mat.userData as { source2Effect?: { flags?: Record<string, number> } }).source2Effect;
+          if (fx?.flags?.F_JITTER_VERTICES && (mat.alphaTest > 0 || mat.transparent)) cards.push(m);
+        });
+        for (const c of cards) c.removeFromParent();
         scene.add(model);
         rims = [];
         const read = readGroups(model);
@@ -252,7 +213,9 @@ export default function HeroViewer({ hero, codes, addon }: Props) {
         const size = box.getSize(new THREE.Vector3());
         const mid = box.getCenter(new THREE.Vector3());
         const r = Math.max(size.x, size.y, size.z) || 1;
-        rims = outlines(model, size.y || r);
+        // No outline copies: the inflated back-face shells z-fight with the double-sided model and show up as
+        // white/red speckles and stray spikes on many skins.
+        rims = [];
         const dist = (r / 2 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2))) * 1.25;
         // the game's models face +X: look at the hero from the front, slightly to one side and above
         const dir = new THREE.Vector3(0.88, 0.12, 0.46).normalize();

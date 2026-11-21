@@ -11,7 +11,7 @@ import Select from "../../components/Select";
 import Icon from "../../components/Icons";
 import EmptyState from "../../components/EmptyState";
 import { openExternal } from "../../lib/open";
-import { Tags, Peek } from "./ContentView";
+import { Tags } from "./ContentView";
 
 type Props = {
   mods: InstalledMod[] | null;
@@ -103,17 +103,9 @@ export default function Library({ mods, groups, known, contents, last, busy, onT
   const [hero, setHero] = useState("");
   const [onlyUpdates, setOnlyUpdates] = useState(false);
   const [sort, setSort] = useState<Sort>("name");
-  const [open, setOpen] = useState<Set<string>>(new Set()); // tiles whose "what is inside" panel is expanded
 
   const pick = (key: string) =>
     setPicked((prev) => {
-      const next = new Set(prev);
-      if (!next.delete(key)) next.add(key);
-      return next;
-    });
-
-  const toggleOpen = (key: string) =>
-    setOpen((prev) => {
       const next = new Set(prev);
       if (!next.delete(key)) next.add(key);
       return next;
@@ -258,14 +250,13 @@ export default function Library({ mods, groups, known, contents, last, busy, onT
     : null;
 
   const renderTile = (it: Item) => {
-    const expanded = open.has(it.key);
     const m = it.own;
     const g = it.group;
     const i = m ? own.findIndex((x) => x.id === m.id) : -1;
     const toggle = () => (m ? onToggle(m.id, it.state !== "on") : g && onToggleForeign(g, it.state !== "on"));
     const label = `${it.state === "on" ? t("home.disable") : t("home.enable")}: ${it.title}`;
     return (
-      <li key={it.key} className={`tile ${it.state === "off" ? "tile-off" : ""} ${expanded ? "tile-wide" : ""}`}>
+      <li key={it.key} className={`tile ${it.state === "off" ? "tile-off" : ""}`}>
         <div className="tile-cover">
           {it.thumb ? <Thumb url={it.thumb} /> : <div className="tile-img tile-img-empty" aria-hidden>{it.hero?.[0] ?? it.title[0]}</div>}
           <label className={`tile-pick ${picked.size > 0 ? "tile-pick-shown" : ""}`} title={t("library.select")}>
@@ -305,14 +296,7 @@ export default function Library({ mods, groups, known, contents, last, busy, onT
           <div className="tile-tags">{it.content ? <Tags content={it.content} skipHero={!it.thumb && !!it.hero && !!g && !g.id} /> : <div className="tile-meta">{t("library.noContent")}</div>}</div>
         </div>
         <div className="tile-actions">
-          {it.content ? (
-            <button className="btn btn-sm btn-ghost" aria-expanded={expanded} onClick={() => toggleOpen(it.key)}>
-              <Icon name="layers" size={16} />
-              {expanded ? t("library.hideInside") : t("library.showInside")}
-            </button>
-          ) : (
-            <span />
-          )}
+          <span />
           <div className="tile-actions-end">
             {m && reorderable && own.length > 1 && (
               <span className="mover" role="group" aria-label={t("library.order")}>
@@ -341,22 +325,6 @@ export default function Library({ mods, groups, known, contents, last, busy, onT
             )}
           </div>
         </div>
-        {expanded && (
-          <div className="tile-inside">
-            {g && g.files.length > 1 && (
-              <ul className="group-files">
-                {g.files.map((f) => (
-                  <li key={f.name}>
-                    <span className={`dot ${f.enabled ? "dot-on" : "dot-off"}`} aria-hidden />
-                    <span>{f.name}</span>
-                    <span>{formatBytes(f.size)}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            {it.content && <Peek content={it.content} />}
-          </div>
-        )}
       </li>
     );
   };

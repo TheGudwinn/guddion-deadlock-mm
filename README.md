@@ -1,15 +1,15 @@
-Guddion
-=======
+Kea Mods
+========
 
-[![Release](https://img.shields.io/github/v/release/TheGudwinn/guddion-deadlock-mm)](https://github.com/TheGudwinn/guddion-deadlock-mm/releases)
-[![Issues](https://img.shields.io/github/issues/TheGudwinn/guddion-deadlock-mm)](https://github.com/TheGudwinn/guddion-deadlock-mm/issues)
-[![License](https://img.shields.io/github/license/TheGudwinn/guddion-deadlock-mm)](LICENSE)
+[![Release](https://img.shields.io/github/v/release/TheGudwinn/kea-mods)](https://github.com/TheGudwinn/kea-mods/releases)
+[![Issues](https://img.shields.io/github/issues/TheGudwinn/kea-mods)](https://github.com/TheGudwinn/kea-mods/issues)
+[![License](https://img.shields.io/github/license/TheGudwinn/kea-mods)](LICENSE)
 [![Tauri](https://img.shields.io/badge/Built%20with-Tauri-24C8DB)](https://tauri.app)
 
 A mod manager for the Valve game Deadlock, built with Tauri, Rust, React and TypeScript.
 Installs mods from GameBanana, manages their load order and updates, and works through proxies and mirrors on unreliable networks.
 
-[Download](https://github.com/TheGudwinn/guddion-deadlock-mm/releases) | [Report a bug](https://github.com/TheGudwinn/guddion-deadlock-mm/issues) | [Request a feature](https://github.com/TheGudwinn/guddion-deadlock-mm/issues)
+[Download](https://github.com/TheGudwinn/kea-mods/releases) | [Report a bug](https://github.com/TheGudwinn/kea-mods/issues) | [Request a feature](https://github.com/TheGudwinn/kea-mods/issues)
 
 Table of Contents
 -----------------
@@ -41,20 +41,20 @@ Features
 Installation
 ------------
 
-Windows 10 or 11 is required. Download the installer from the [Releases](https://github.com/TheGudwinn/guddion-deadlock-mm/releases) page and run it.
+Windows 10 or 11 is required. Download the installer from the [Releases](https://github.com/TheGudwinn/kea-mods/releases) page and run it.
 The installer bundles WebView2 and does not need an internet connection.
 
 Usage
 -----
 
-1. Start Guddion. It locates the Deadlock installation through Steam; the path can be set manually in Settings.
+1. Start Kea Mods. It locates the Deadlock installation through Steam; the path can be set manually in Settings.
 2. Open the catalog, pick a mod and press Install. Progress is shown in the left panel and on the Downloads page.
 3. Manage installed mods in the Library: toggle, reorder, update or remove them.
 
 Game integration
 ----------------
 
-- The game mounts only `pakNN_dir.vpk` files from `addons`. Guddion names its files accordingly and identifies its own files through its database.
+- The game mounts only `pakNN_dir.vpk` files from `addons`. Kea Mods names its files accordingly and identifies its own files through its database.
 - `gameinfo.gi` is modified minimally and backed up first. If missing, the `Mod citadel` and `Write citadel` entries are added.
 - All changes are journaled and can be undone.
 
@@ -64,8 +64,8 @@ Development
 Requirements: Node 24, pnpm, Rust (stable) and, on Windows, Visual Studio Build Tools with the C++ workload.
 
 ```bash
-git clone https://github.com/TheGudwinn/guddion-deadlock-mm.git
-cd guddion-deadlock-mm
+git clone https://github.com/TheGudwinn/kea-mods.git
+cd kea-mods
 pnpm install
 pnpm tauri dev       # application with hot reload
 pnpm build           # type check and build the interface
@@ -92,5 +92,5 @@ This project is not affiliated with Valve Corporation. Deadlock is a trademark o
 Contact
 -------
 
-- Repository: https://github.com/TheGudwinn/guddion-deadlock-mm
-- Issues: https://github.com/TheGudwinn/guddion-deadlock-mm/issues
+- Repository: https://github.com/TheGudwinn/kea-mods
+- Issues: https://github.com/TheGudwinn/kea-mods/issues

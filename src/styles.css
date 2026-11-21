@@ -5866,3 +5866,20 @@ details summary {
   color: var(--text);
   box-shadow: none;
 }
+
+/* Hero filter: portrait before the name */
+.cat-sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.cat-sub .cat-ico {
+  width: 26px;
+  height: 26px;
+  margin-left: -6px;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: 50% 12%;
+  background: rgb(255 255 255 / 0.06);
+  flex: none;
+}

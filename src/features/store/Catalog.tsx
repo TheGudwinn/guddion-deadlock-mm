@@ -43,6 +43,12 @@ export default function Catalog({ installedIds, onOpen, search, preset, onGoSett
   const [sub, setSub] = useState<number | null>(null);
   const [subs, setSubs] = useState<Category[]>([]);
   const [subQuery, setSubQuery] = useState("");
+  // Sharp hero cards from the game's asset list; the 40 px GameBanana icon is the fallback.
+  const [portraits, setPortraits] = useState<Record<string, string>>({});
+  useEffect(() => {
+    call<Record<string, string>>("hero_portraits").then((r) => setPortraits(r ?? {}), () => {});
+  }, []);
+  const portrait = (c: Category) => portraits[c.name.toLowerCase().replace(/^the /, "").replace(/[^\p{L}\p{N}]/gu, "")] ?? c.icon ?? undefined;
   const [subAll, setSubAll] = useState(false);
   // the list grows as the page is scrolled instead of switching pages
   const [acc, setAcc] = useState<Mod[]>([]);
@@ -233,6 +239,7 @@ export default function Catalog({ installedIds, onOpen, search, preset, onGoSett
                     setPage(1);
                   }}
                 >
+                  {portrait(c) && <img className="cat-ico" src={portrait(c)} alt="" loading="lazy" />}
                   {c.name}
                   <small>{c.item_count}</small>
                 </button>

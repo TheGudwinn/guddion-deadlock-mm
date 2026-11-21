@@ -150,17 +150,35 @@ pub async fn export_profile(state: State<'_, AppState>, id: i64, path: String) -
     tokio::fs::write(PathBuf::from(path), json).await.map_err(err)
 }
 
-/// Import a profile file. Never installs anything: entries for mods you do not have are listed as missing.
+/// Prefix of a profile share code, so a pasted code is recognised and a future format can be told apart.
+const CODE_PREFIX: &str = "kea1:";
+
+/// The profile as one line of text (`kea1:` + base64url of the same JSON a profile file holds), to paste into a chat.
 #[tauri::command]
-pub async fn import_profile(state: State<'_, AppState>, path: String) -> Result<i64, String> {
-    let meta = tokio::fs::metadata(&path).await.map_err(err)?;
-    if meta.len() as usize > profiles::MAX_FILE_BYTES {
+pub async fn profile_code(state: State<'_, AppState>, id: i64) -> Result<String, String> {
+    use base64::Engine;
+    let pool = &state.db().await?.pool;
+    let name = store::name_of(pool, id).await.map_err(err)?.ok_or("profile_not_found")?;
+    let entries = store::entries_of(pool, id).await.map_err(err)?;
+    let json = serde_json::to_vec(&profiles::to_file(&name, entries)).map_err(err)?;
+    Ok(format!("{CODE_PREFIX}{}", base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(json)))
+}
+
+/// Import a profile from a share code. Same checks as a file: untrusted text, nothing is installed.
+#[tauri::command]
+pub async fn import_profile_code(state: State<'_, AppState>, code: String) -> Result<i64, String> {
+    use base64::Engine;
+    let body = code.trim().strip_prefix(CODE_PREFIX).ok_or("not_a_profile:wrong code")?;
+    if body.len() > profiles::MAX_FILE_BYTES * 2 {
         return Err("file_too_large".into());
     }
-    let bytes = tokio::fs::read(&path).await.map_err(err)?;
+    let bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(body.trim()).map_err(|_| "not_a_profile:bad code".to_string())?;
     let file = profiles::parse_profile_file(&bytes)?;
-    let pool = &state.db().await?.pool;
+    store_imported(&state, file).await
+}
 
+async fn store_imported(state: &AppState, file: profiles::ProfileFile) -> Result<i64, String> {
+    let pool = &state.db().await?.pool;
     // Keep the imported name unique: "Name", "Name (2)", ...
     for n in 1..=50 {
         let candidate = if n == 1 { file.name.clone() } else { format!("{} ({n})", file.name) };
@@ -171,4 +189,16 @@ pub async fn import_profile(state: State<'_, AppState>, path: String) -> Result<
         }
     }
     Err("name_taken".into())
+}
+
+/// Import a profile file. Never installs anything: entries for mods you do not have are listed as missing.
+#[tauri::command]
+pub async fn import_profile(state: State<'_, AppState>, path: String) -> Result<i64, String> {
+    let meta = tokio::fs::metadata(&path).await.map_err(err)?;
+    if meta.len() as usize > profiles::MAX_FILE_BYTES {
+        return Err("file_too_large".into());
+    }
+    let bytes = tokio::fs::read(&path).await.map_err(err)?;
+    let file = profiles::parse_profile_file(&bytes)?;
+    store_imported(&state, file).await
 }

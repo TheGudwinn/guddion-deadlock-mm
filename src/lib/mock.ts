@@ -44,9 +44,9 @@ const INSTALLED: InstalledMod[] = [
     version: "1.2",
     remote_id: "671416",
     slot: 2,
-    enabled: false,
+    enabled: true,
     game_build: "26401200",
-    files: [{ name: "ddmm7_pak02_dir.vpk", size: 2318004, present: true, enabled: false }],
+    files: [{ name: "ddmm7_pak02_dir.vpk", size: 2318004, present: true, enabled: true }],
   },
 ];
 

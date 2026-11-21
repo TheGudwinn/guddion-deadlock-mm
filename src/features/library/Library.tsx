@@ -29,6 +29,7 @@ type Props = {
   onReorder: (ids: number[]) => void;
   /** Current game build, to flag mods installed on an older one. */
   gameBuild: string | null;
+  onGoFixes: () => void;
   report: UpdateReport | null;
   checking: boolean;
   onCheckUpdates: () => void;
@@ -94,7 +95,7 @@ function Thumb({ url }: { url: string }) {
   );
 }
 
-export default function Library({ mods, groups, known, contents, last, busy, onToggle, onToggleForeign, onRemove, onUndo, onReorder, gameBuild, report, checking, onCheckUpdates, onUpdate, onUpdateForeign, onBulkUpdate, onGoCatalog, compat, gameFound, gameRunning, onBulkToggle, onBulkRemove }: Props) {
+export default function Library({ mods, groups, known, contents, last, busy, onToggle, onToggleForeign, onRemove, onUndo, onReorder, gameBuild, onGoFixes, report, checking, onCheckUpdates, onUpdate, onUpdateForeign, onBulkUpdate, onGoCatalog, compat, gameFound, gameRunning, onBulkToggle, onBulkRemove }: Props) {
   const { t } = useTranslation();
   const [picked, setPicked] = useState<Set<string>>(new Set()); // tiles selected for a bulk action
   const [query, setQuery] = useState("");
@@ -400,6 +401,9 @@ export default function Library({ mods, groups, known, contents, last, busy, onT
           <div className="notice" role="note">
             <b>{t("library.patchTitle")}</b>
             <span>{t("library.patchText", { count: stale.length, build: gameBuild })}</span>
+            <button className="btn" onClick={onGoFixes}>
+              {t("library.patchOpen")}
+            </button>
           </div>
         )}
       </header>

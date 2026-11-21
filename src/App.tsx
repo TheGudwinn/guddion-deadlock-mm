@@ -24,6 +24,7 @@ import {
 } from "./lib/api";
 import { formatBytes, humanizeError } from "./lib/format";
 import { useCompat } from "./lib/compat";
+import { findSuspects, patchAcked } from "./lib/patch";
 import Activity, { type ActivityState } from "./components/Activity";
 import SessionFeed, { type FeedEntry } from "./components/SessionFeed";
 import UpdateBanner from "./components/UpdateBanner";
@@ -483,6 +484,21 @@ export default function App() {
       say(t("profiles.exported"));
     });
 
+  const copyProfileCode = (p: Profile) =>
+    void run(async () => {
+      const code = await call<string>("profile_code", { id: p.id });
+      await navigator.clipboard.writeText(code);
+      say(t("profiles.codeCopied", { name: p.name }));
+    });
+
+  const importProfileCode = async (code: string): Promise<boolean> => {
+    const id = await run(() => call<number>("import_profile_code", { code }));
+    if (id === undefined) return false;
+    const list = await call<Profile[]>("list_profiles");
+    say(t("profiles.imported", { name: list.find((p) => p.id === id)?.name ?? "" }));
+    return true;
+  };
+
   const importProfile = () =>
     void run(async () => {
       let path: string | null = "mock.json";
@@ -514,6 +530,14 @@ export default function App() {
       for (const g of gs) await call("set_foreign_enabled", { files: g.files.map((f) => f.name), id: g.id, enabled });
       markChanged();
       say(t(enabled ? "library.bulkOn" : "library.bulkOff", { count: ids.length + gs.length }));
+    });
+  // Switches mods on and off for the "find the broken mod" search; resolves when the files have changed.
+  const applyEnabled = (on: number[], off: number[]) =>
+    run(async () => {
+      for (const id of on) await call("set_mod_enabled", { id, enabled: true });
+      for (const id of off) await call("set_mod_enabled", { id, enabled: false });
+      markChanged();
+      return true;
     });
   const bulkRemove = (ids: number[]) => {
     const names = (installed ?? []).filter((m) => ids.includes(m.id)).map((m) => m.name);
@@ -585,6 +609,9 @@ export default function App() {
     window.addEventListener("resize", place);
     return () => window.removeEventListener("resize", place);
   }, [view, look.rail]);
+  // mods built for an older game build that a patch may have broken (hidden once the user dismisses the notice)
+  const patchBuild = game?.build_id ?? null;
+  const patchBadge = patchAcked(patchBuild) ? 0 : findSuspects(installed, contents, patchBuild, modReport).filter((x) => x.risk !== "low").length;
   const order: View[] = ["home", "catalog", "profiles", "library", "skins", "downloads", "performance", "fixes", "settings"];
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -632,7 +659,7 @@ export default function App() {
             ["skins", "skins", 0],
             ["downloads", "downloads", activeDownloads.length],
             ["performance", "performance", 0],
-            ["fixes", "fixes", 0],
+            ["fixes", "fixes", patchBadge],
           ] as const
         ).map(([id, icon, badge]) => (
           <button key={id} className="rail-item" data-tip={hint(id)} aria-current={view === id ? "page" : undefined} aria-label={t(`nav.${id}`)} aria-keyshortcuts={`Alt+${order.indexOf(id) + 1}`} onClick={() => setView(id)}>
@@ -800,6 +827,18 @@ export default function App() {
           <Fixes
             game={game}
             compat={compat}
+            mods={installed}
+            contents={contents}
+            report={modReport}
+            checking={checkingMods}
+            busy={busy}
+            onCheckUpdates={() => void checkMods(true)}
+            onUpdate={(id) => void updateMod(id)}
+            onUpdateMany={(ids) => void bulkUpdate(ids, [])}
+            onDisable={(ids) => bulkToggle(ids, [], false)}
+            gameRunning={running}
+            onPlay={() => void launchGame()}
+            onApply={applyEnabled}
             onChanged={() => {
               void refresh();
             }}
@@ -816,6 +855,8 @@ export default function App() {
             onGoLibrary={() => setView("library")}
             onExport={exportProfile}
             onImport={importProfile}
+            onCopyCode={copyProfileCode}
+            onImportCode={importProfileCode}
           />
         ) : (
           <Library
@@ -838,6 +879,7 @@ export default function App() {
             onUpdateForeign={(id, name) => void updateForeign(id, name)}
             onBulkUpdate={(ids, foreignMods) => void bulkUpdate(ids, foreignMods)}
             onGoCatalog={() => setView("catalog")}
+            onGoFixes={() => setView("fixes")}
             compat={compat}
             gameFound={!!game}
             gameRunning={running}

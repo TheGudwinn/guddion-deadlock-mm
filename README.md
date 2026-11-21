@@ -33,10 +33,19 @@ Features
 - **Updates**: in-app, single or bulk, including mods installed by other managers.
 - **Camera check**: verifies hero cameras in installed models, including zstd-compressed resources, and marks fixed mods.
 - **History**: installs and updates are listed on the Downloads page and kept between runs.
-- **Profiles**: mod sets with JSON export and import.
+- **Profiles**: mod sets with JSON export and import, plus a one-line share code (`kea1:...`) to paste into a chat.
+- **After a game patch**: mods installed on an older game build are listed with a risk level (hero models, effects and scripts break most often). Check for updates or switch the risky ones off in one click.
+- **Find the broken mod**: switches half of the mods off, you start the game and answer whether the problem is still there; a few steps find the cause. Everything can be put back as it was.
+- **Look inside before installing**: the mod page can show what a file changes (models, textures, sounds, heroes) without installing it.
 - **Network**: HTTP, HTTPS and SOCKS5 proxies, a mirror list and step-by-step diagnostics (DNS, TCP, TLS).
 - **Self-update**: signed application updates.
-- **Privacy**: no telemetry. Mods are never executed; only resources are extracted from archives.
+- **Privacy**: no accounts, no telemetry and no backend of our own; everything stays on your computer. Mods are never executed; only resources are extracted from archives.
+
+Network requests
+----------------
+
+The only hosts the app talks to: `gamebanana.com` and `images.gamebanana.com` (catalog and downloads), `api.deadlock-api.com`
+(hero portraits) and `github.com` (update check, can be turned off in Settings). The library lives in a local database on your machine.
 
 Installation
 ------------

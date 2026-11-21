@@ -13,12 +13,15 @@ type Props = {
   onDelete: (id: number) => void;
   onExport: (p: Profile) => void;
   onImport: () => void;
+  onCopyCode: (p: Profile) => void;
+  onImportCode: (code: string) => Promise<boolean>;
   onGoLibrary: () => void;
 };
 
-export default function Profiles({ profiles, busy, onCreate, onApply, onUpdate, onRename, onDelete, onExport, onImport, onGoLibrary }: Props) {
+export default function Profiles({ profiles, busy, onCreate, onApply, onUpdate, onRename, onDelete, onExport, onImport, onCopyCode, onImportCode, onGoLibrary }: Props) {
   const { t } = useTranslation();
   const [name, setName] = useState("");
+  const [code, setCode] = useState("");
   const [editing, setEditing] = useState<{ id: number; value: string } | null>(null);
 
   return (
@@ -41,6 +44,18 @@ export default function Profiles({ profiles, busy, onCreate, onApply, onUpdate, 
           <input className="field search" value={name} maxLength={100} placeholder={t("profiles.newName")} aria-label={t("profiles.newName")} onChange={(e) => setName(e.target.value)} />
           <button className="btn btn-primary" type="submit" disabled={busy || !name.trim()}>
             {t("profiles.create")}
+          </button>
+        </form>
+        <form
+          className="toolbar"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (await onImportCode(code)) setCode("");
+          }}
+        >
+          <input className="field search" value={code} placeholder={t("profiles.codePlaceholder")} aria-label={t("profiles.codePlaceholder")} onChange={(e) => setCode(e.target.value)} />
+          <button className="btn" type="submit" disabled={busy || !code.trim()}>
+            {t("profiles.codeImport")}
           </button>
         </form>
       </header>
@@ -110,6 +125,9 @@ export default function Profiles({ profiles, busy, onCreate, onApply, onUpdate, 
                 </button>
                 <button className="btn" disabled={busy} onClick={() => onUpdate(p)}>
                   {t("profiles.update")}
+                </button>
+                <button className="btn btn-quiet" disabled={busy} onClick={() => onCopyCode(p)}>
+                  {t("profiles.copyCode")}
                 </button>
                 <button className="btn btn-quiet" disabled={busy} onClick={() => onExport(p)}>
                   {t("profiles.export")}

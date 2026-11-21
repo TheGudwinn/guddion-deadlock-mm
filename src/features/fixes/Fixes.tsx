@@ -1,12 +1,28 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { call, type Finding } from "../../lib/api";
+import { call, type AddonContent, type Finding, type InstalledMod, type UpdateReport } from "../../lib/api";
+import Bisect from "./Bisect";
+import { ackPatch, findSuspects, patchAcked } from "../../lib/patch";
 import { humanizeError } from "../../lib/format";
 import { isFixable, repairTitle, type Compat } from "../../lib/compat";
 
 type Props = {
   game: unknown;
   compat: Compat;
+  mods: InstalledMod[] | null;
+  contents: AddonContent[];
+  report: UpdateReport | null;
+  checking: boolean;
+  busy: boolean;
+  onCheckUpdates: () => void;
+  onUpdate: (id: number) => void;
+  onUpdateMany: (ids: number[]) => void;
+  /** Switches the mods off in one go (journaled, so the library undo button brings them back). */
+  onDisable: (ids: number[]) => void;
+  gameRunning: boolean;
+  onPlay: () => void;
+  /** Switches mods on and off in one go and resolves when done. */
+  onApply: (on: number[], off: number[]) => Promise<unknown>;
   /** Called after a fix changed game files, so the library and counters are read again. */
   onChanged: () => void;
 };
@@ -96,7 +112,72 @@ function CompatPanel({ compat }: { compat: Compat }) {
   );
 }
 
-export default function Fixes({ game, compat, onChanged }: Props) {
+function PatchPanel({ game, mods, contents, report, checking, busy, onCheckUpdates, onUpdate, onUpdateMany, onDisable }: Omit<Props, "compat" | "onChanged" | "gameRunning" | "onPlay" | "onApply">) {
+  const { t } = useTranslation();
+  const build = (game as { build_id?: string | null } | null | undefined)?.build_id ?? null;
+  const [acked, setAcked] = useState(() => patchAcked(build));
+  const suspects = findSuspects(mods, contents, build, report);
+  if (!build || suspects.length === 0) return null;
+  const risky = suspects.filter((s) => s.risk !== "low");
+  const withUpdate = suspects.filter((s) => s.update);
+
+  return (
+    <section className="block">
+      <div className="view-title-row">
+        <h2 className="block-title">{t("fixes.patch.title", { build })}</h2>
+        <button className="btn" disabled={checking || busy} onClick={onCheckUpdates}>
+          {checking ? t("fixes.patch.checking") : t("fixes.patch.check")}
+        </button>
+      </div>
+      <p className="note">{t("fixes.patch.text", { count: suspects.length })}</p>
+      <div className="row">
+        {risky.length > 0 && (
+          <button className="btn btn-primary" disabled={busy} onClick={() => onDisable(risky.map((s) => s.mod.id))}>
+            {t("fixes.patch.disableRisky", { count: risky.length })}
+          </button>
+        )}
+        {withUpdate.length > 0 && (
+          <button className="btn" disabled={busy} onClick={() => onUpdateMany(withUpdate.map((s) => s.mod.id))}>
+            {t("fixes.patch.updateAll", { count: withUpdate.length })}
+          </button>
+        )}
+        {!acked && (
+          <button
+            className="btn btn-quiet"
+            onClick={() => {
+              ackPatch(build);
+              setAcked(true);
+            }}
+          >
+            {t("fixes.patch.dismiss")}
+          </button>
+        )}
+      </div>
+      <ul className="finds">
+        {suspects.map((s) => (
+          <li key={s.mod.id} className={`find find-${s.risk === "high" ? "error" : s.risk === "mid" ? "warn" : "info"}`}>
+            <div className="find-main">
+              <div className="find-title">{s.mod.name}</div>
+              <p className="find-text">
+                {t(`fixes.patch.risk_${s.risk}`)}
+                {s.kinds.length > 0 && ` · ${s.kinds.map((k) => t(`kind.${k}`)).join(", ")}`}
+                {` · ${t("fixes.patch.built", { build: s.mod.game_build })}`}
+              </p>
+            </div>
+            {s.update && (
+              <button className="btn btn-primary" disabled={busy} onClick={() => onUpdate(s.mod.id)}>
+                {t("fixes.patch.update")}
+              </button>
+            )}
+          </li>
+        ))}
+      </ul>
+      <p className="note">{t("fixes.patch.note")}</p>
+    </section>
+  );
+}
+
+export default function Fixes({ game, compat, onChanged, gameRunning, onPlay, onApply, ...patch }: Props) {
   const { t } = useTranslation();
   const [findings, setFindings] = useState<Finding[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -147,6 +228,8 @@ export default function Fixes({ game, compat, onChanged }: Props) {
         <p className="view-sub">{t("fixes.subtitle")}</p>
       </header>
 
+      <PatchPanel game={game} {...patch} />
+
       {error && <p className="form-error">{error}</p>}
       {note && <p className="note">{note}</p>}
       {!findings && !error && <p className="note">…</p>}
@@ -181,6 +264,7 @@ export default function Fixes({ game, compat, onChanged }: Props) {
         ))}
       </ul>
       <p className="note">{t("fixes.undoNote")}</p>
+      <Bisect mods={patch.mods} busy={patch.busy} gameFound={!!game} gameRunning={gameRunning} apply={onApply} onPlay={onPlay} />
       <CompatPanel compat={compat} />
     </section>
   );

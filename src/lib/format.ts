@@ -55,6 +55,7 @@ export function humanizeError(t: TFunction, e: unknown): string {
     case "too_many_mods":
       return t("errors.bad_profile");
   }
+  if (code === "peek_too_big") return t("errors.peek_too_big");
   if (code === "already_queued") return t("errors.already_queued");
   if (["no_update", "update_no_source", "update_slot_conflict", "mod_not_found"].includes(code)) return t(`errors.${code}`);
   if (code === "updates_not_configured") return t("errors.updates_not_configured");

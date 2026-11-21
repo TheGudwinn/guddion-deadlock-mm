@@ -504,3 +504,42 @@ pub async fn library_stats(state: State<'_, AppState>) -> Result<LibraryStats, S
     .await
     .map_err(err)?
 }
+
+/// Largest archive the preview will download just to look inside.
+const PEEK_MAX_BYTES: u64 = 250 << 20;
+
+/// Downloads a mod file into a scratch folder, reads the VPK directories inside and reports what the mod
+/// changes, without installing anything. The scratch folder is removed afterwards, whatever the result.
+#[tauri::command]
+pub async fn peek_mod_file(state: State<'_, AppState>, mod_id: String, file_id: String) -> Result<crate::library::describe::Content, String> {
+    let source = state.source();
+    let details = source.get_mod_details(&mod_id).await.map_err(err)?;
+    let file = details.files.iter().find(|f| f.id == file_id).ok_or("no_files")?.clone();
+    if !crate::library::updates::installable(&file.name) {
+        return Err(format!("unsupported_format:{}", file.name));
+    }
+    if file.size > PEEK_MAX_BYTES {
+        return Err("peek_too_big".into());
+    }
+    let dir = state.app_dir.join("peek").join(format!("{}_{}", file.id, crate::game::checks::stamp()));
+    std::fs::create_dir_all(&dir).map_err(err)?;
+    let result = async {
+        let archive = dir.join("archive");
+        let pause = std::sync::atomic::AtomicBool::new(false);
+        source.download(&file, &archive, &pause, &|_| {}).await.map_err(err)?;
+        let out = dir.join("vpk");
+        std::fs::create_dir_all(&out).map_err(err)?;
+        let task = tokio::task::spawn_blocking(move || -> Result<crate::library::describe::Content, String> {
+            let vpks = crate::install::extract::extract_vpks(&archive, &out, &Limits::default()).map_err(err)?;
+            let mut files = Vec::new();
+            for v in vpks {
+                files.extend(crate::install::vpk::read_vpk_index(&v)?.files);
+            }
+            Ok(crate::library::describe::describe(&files))
+        });
+        task.await.map_err(err)?
+    }
+    .await;
+    let _ = std::fs::remove_dir_all(&dir);
+    result
+}

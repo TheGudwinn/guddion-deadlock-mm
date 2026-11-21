@@ -40,7 +40,7 @@ function CompatPanel({ compat }: { compat: Compat }) {
     <section className="block">
       <div className="view-title-row">
         <h2 className="block-title">{t("fixes.compat.title")}</h2>
-        <button className="btn btn-primary" disabled={busy} onClick={() => void compat.scan()}>
+        <button className="btn" disabled={busy} onClick={() => void compat.scan()}>
           {busy ? t("fixes.compat.scanning") : t("fixes.compat.scan")}
         </button>
       </div>
@@ -58,7 +58,7 @@ function CompatPanel({ compat }: { compat: Compat }) {
       )}
       {rep && fixable && (
         <div className="row">
-          <button className="btn btn-primary" disabled={busy} onClick={() => void compat.repair()}>
+          <button className="btn" disabled={busy} onClick={() => void compat.repair()}>
             {t("fixes.compat.repair")}
           </button>
           <span className="note">{t("fixes.compat.repairHint")}</span>
@@ -132,7 +132,7 @@ function PatchPanel({ game, mods, contents, report, checking, busy, onCheckUpdat
       <p className="note">{t("fixes.patch.text", { count: suspects.length })}</p>
       <div className="row">
         {risky.length > 0 && (
-          <button className="btn btn-primary" disabled={busy} onClick={() => onDisable(risky.map((s) => s.mod.id))}>
+          <button className="btn" disabled={busy} onClick={() => onDisable(risky.map((s) => s.mod.id))}>
             {t("fixes.patch.disableRisky", { count: risky.length })}
           </button>
         )}
@@ -165,7 +165,7 @@ function PatchPanel({ game, mods, contents, report, checking, busy, onCheckUpdat
               </p>
             </div>
             {s.update && (
-              <button className="btn btn-primary" disabled={busy} onClick={() => onUpdate(s.mod.id)}>
+              <button className="btn" disabled={busy} onClick={() => onUpdate(s.mod.id)}>
                 {t("fixes.patch.update")}
               </button>
             )}
@@ -232,7 +232,7 @@ export default function Fixes({ game, compat, onChanged, gameRunning, onPlay, on
 
       {error && <p className="form-error">{error}</p>}
       {note && <p className="note">{note}</p>}
-      {!findings && !error && <p className="note">…</p>}
+      {!findings && !error && <p className="note">{t("fixes.checking")}</p>}
       {findings && findings.length === 0 && (
         <div className="notice ok-notice" role="status">
           <b>{t("fixes.allGood")}</b>
@@ -256,7 +256,7 @@ export default function Fixes({ game, compat, onChanged, gameRunning, onPlay, on
               )}
             </div>
             {f.fix && (
-              <button className="btn btn-primary" disabled={!!working} onClick={() => void fix(f)}>
+              <button className="btn" disabled={!!working} onClick={() => void fix(f)}>
                 {working === f.kind ? "…" : t(`fixes.fix_${f.fix}`)}
               </button>
             )}

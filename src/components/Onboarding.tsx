@@ -44,7 +44,7 @@ export default function Onboarding({ gameFound, hasMods, launched, onGoSettings,
               <span>{s.text}</span>
             </div>
             {s.action && (
-              <button className={`btn btn-sm ${i === current ? "btn-primary" : ""}`} onClick={s.action.run}>
+              <button className={"btn btn-sm"} onClick={s.action.run}>
                 {s.action.label}
               </button>
             )}

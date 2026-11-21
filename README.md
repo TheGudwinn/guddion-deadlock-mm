@@ -45,7 +45,7 @@ Network requests
 ----------------
 
 The only hosts the app talks to: `gamebanana.com` and `images.gamebanana.com` (catalog and downloads), `api.deadlock-api.com`
-(hero portraits) and `github.com` (update check, can be turned off in Settings). The library lives in a local database on your machine.
+(hero portraits), `github.com` (update check, can be turned off in Settings) and `raw.githubusercontent.com` (news and community collections from the `content/` folder of this repository; the last copy is kept for offline use). The library lives in a local database on your machine.
 
 Installation
 ------------

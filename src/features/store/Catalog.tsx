@@ -307,17 +307,12 @@ export default function Catalog({ installedIds, onOpen, search, preset, onGoSett
                       <img className="tile-img" src={m.thumbnail} alt="" loading="lazy" decoding="async" />
                     ) : (
                       <span className="tile-img tile-img-empty" aria-hidden="true">
-                        {m.name.slice(0, 1)}
+                        {m.category ?? ""}
                       </span>
                     )}
                     <span className="tile-likes">
                       <Heart /> {compact(m.likes)}
                     </span>
-                    {have && (
-                      <span className="tile-have-mark" title={t("catalog.installed")}>
-                        <Icon name="check" size={16} />
-                      </span>
-                    )}
                   </button>
                   <div className="tile-body">
                     <div className="tile-title" title={m.name}>
@@ -326,14 +321,13 @@ export default function Catalog({ installedIds, onOpen, search, preset, onGoSett
                     <div className="tile-meta">{[m.author, m.category].filter(Boolean).join(" · ")}</div>
                     <div className="tile-flags">{have && <span className="flag flag-ok">{t("catalog.installed")}</span>}</div>
                   </div>
-                  <div className="tile-actions">
-                    <button className="btn btn-sm btn-ghost" onClick={() => onOpen(m)}>
-                      {t("catalog.details")}
-                    </button>
-                    <button className={`btn btn-sm ${have ? "" : "btn-primary"}`} onClick={() => onOpen(m)}>
-                      {have ? t("drawer.installed") : t("drawer.install")}
-                    </button>
-                  </div>
+                  {!have && (
+                    <div className="tile-actions">
+                      <button className="btn btn-sm" onClick={() => onOpen(m)}>
+                        {t("drawer.install")}
+                      </button>
+                    </div>
+                  )}
                 </li>
               );
             })}

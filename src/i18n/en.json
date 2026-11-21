@@ -11,10 +11,11 @@
     "downloads": "Downloads",
     "home": "Home",
     "performance": "Performance",
-    "fixes": "Fixes",
+    "fixes": "Diagnostics",
     "collapse": "Collapse sidebar",
     "expand": "Expand sidebar",
-    "skins": "Hero skins"
+    "skins": "Heroes",
+    "feedback": "Feedback"
   },
   "game": {
     "found": "Game found",
@@ -29,7 +30,8 @@
     "running": "Game is running",
     "runningHint": "Deadlock is running. Mod changes apply on its next start.",
     "pending": "Applies on next start",
-    "pendingHint": "You changed mods. The game loads the changes the next time it starts."
+    "pendingHint": "You changed mods. The game loads the changes the next time it starts.",
+    "modsOn": "mods on: {{count}}"
   },
   "catalog": {
     "title": "Catalog",
@@ -68,7 +70,7 @@
     "details": "Details"
   },
   "drawer": {
-    "peek": "What is inside (downloads the file to a temp folder)",
+    "peek": "What is inside",
     "peeking": "Looking inside…",
     "close": "Close",
     "files": "Files",
@@ -87,7 +89,8 @@
     "prev": "Previous screenshot",
     "next": "Next screenshot",
     "slow": "The files are taking longer than usual to load.",
-    "retry": "Retry"
+    "retry": "Retry",
+    "peekHint": "Downloads the file to a temporary folder and lists what it holds"
   },
   "library": {
     "title": "Library",
@@ -201,7 +204,12 @@
     "pickAll": "Select all",
     "pickNone": "Clear selection",
     "bulkOn": "Mods enabled: {{count}}",
-    "bulkOff": "Mods disabled: {{count}}"
+    "bulkOff": "Mods disabled: {{count}}",
+    "profilesLink": "Sets",
+    "undoShort": "Undo",
+    "slotCol": "Slot",
+    "modCol": "Mod",
+    "slotHint": "Load slot number. The game reads slots in order; when two mods change the same file, the lower number wins."
   },
   "action": {
     "install": "install “{{name}}”",
@@ -486,7 +494,8 @@
     "prev": "Back",
     "next": "Forward",
     "heroes": "Heroes",
-    "pickHero": "Mods for {{name}}"
+    "pickHero": "Mods for {{name}}",
+    "allFresh": "All up to date"
   },
   "status": {
     "mods_one": "Mods: {{count}}",
@@ -569,7 +578,7 @@
     "fixCancel": "Cancel"
   },
   "fixes": {
-    "title": "Fixes",
+    "title": "Diagnostics",
     "subtitle": "Checks for the usual reasons mods do not work or break the game, such as a broken camera.",
     "recheck": "Check again",
     "allGood": "No problems found",
@@ -680,7 +689,8 @@
     "all_off": {
       "title": "Every mod is off",
       "text": "The game will start without mods."
-    }
+    },
+    "checking": "Checking…"
   },
   "appearance": {
     "title": "Appearance",
@@ -762,7 +772,13 @@
     "wallChange": "Replace",
     "wallRemove": "Remove",
     "wallDim": "Picture dimming",
-    "wallBlur": "Picture blur"
+    "wallBlur": "Picture blur",
+    "theme": "Look",
+    "themeHint": "A set of colours and shapes. Glass looks best with a background picture.",
+    "themes": {
+      "graphite": "Graphite",
+      "glass": "Glass"
+    }
   },
   "confirm": {
     "cancel": "Cancel",
@@ -837,7 +853,98 @@
       "no_model": "This mod has no model for this hero.",
       "no_base_model": "The game has no model for this hero.",
       "addon_missing": "The mod file is missing.",
-      "game_not_found": "Game not found."
+      "game_not_found": "Game not found.",
+      "generic": "This model could not be shown. The skin may still work in the game."
+    },
+    "findTitle": "Find new skins",
+    "findText": "Opens the catalog searching for the hero: {{name}}.",
+    "findBtn": "Find skins for {{name}}",
+    "vw": {
+      "view": "View",
+      "studio": "Studio",
+      "smaaHint": "Edge smoothing (SMAA)",
+      "gizmoHint": "Click an axis to look from that side",
+      "wire": "Wireframe",
+      "floor": "Floor grid",
+      "gizmo": "Axes",
+      "spin": "Auto-rotate",
+      "fov": "Field of view",
+      "bg": "Background",
+      "bg_dark": "Dark",
+      "bg_slate": "Graphite",
+      "bg_light": "Light",
+      "light": "Light",
+      "light_studio": "Studio",
+      "light_soft": "Soft",
+      "light_dramatic": "Contrast",
+      "exposure": "Brightness",
+      "glow": "Glow",
+      "defaults": "Reset settings",
+      "shot": "Screenshot",
+      "record": "Record video",
+      "stop": "Stop recording",
+      "full": "Fullscreen",
+      "play": "Play",
+      "pause": "Pause",
+      "clip": "Animation",
+      "timeline": "Animation time",
+      "saveShot": "Save screenshot",
+      "saveVideo": "Save video",
+      "saved": "Saved",
+      "saveFailed": "Could not save the file",
+      "noRecord": "Video recording is not available here",
+      "busy": "Loading the animation…",
+      "abilities": "Abilities",
+      "idle": "Idle",
+      "noClip": "{{name}}: the game has no separate animation for it"
     }
+  },
+  "crash": {
+    "title": "This screen broke",
+    "text": "The rest of the app works. Try opening the screen again; if that does not help, go to another tab.",
+    "retry": "Open again"
+  },
+  "diag": {
+    "fixes": "Checks",
+    "performance": "Performance"
+  },
+  "news": {
+    "title": "News",
+    "loading": "Loading…",
+    "empty": "Quiet for now. News about the game and the app will appear here."
+  },
+  "collections": {
+    "title": "Community collections",
+    "text": "Ready-made mod sets. \"Add\" creates a profile on your side without installing anything: missing mods are shown as missing.",
+    "empty": "No collections yet. Suggest yours: it appears here after review.",
+    "suggest": "Suggest yours",
+    "suggestTitle": "Suggest a collection",
+    "suggestText": "A GitHub issue opens with your profile code in it. It is public and needs a GitHub account. We review it and add it here.",
+    "pickProfile": "Profile",
+    "notePlaceholder": "A few words about the collection",
+    "send": "Open the issue",
+    "opened": "The issue is open in your browser.",
+    "copied": "The code is too long for a link and was copied. Paste it into the issue.",
+    "add": "Add",
+    "mods": "mods: {{count}}"
+  },
+  "feedback": {
+    "title": "Feedback",
+    "text": "What you like, what you do not, what is missing. It helps decide what to do next.",
+    "kind": "Type",
+    "kind_like": "Like",
+    "kind_dislike": "Dislike",
+    "kind_idea": "Idea",
+    "kind_bug": "Bug",
+    "hint_like": "What works well?",
+    "hint_dislike": "What gets in the way?",
+    "hint_idea": "What is missing?",
+    "hint_bug": "What broke and what were you doing?",
+    "withInfo": "Add the app version ({{version}}) and game build ({{build}})",
+    "public": "A GitHub page opens with the text filled in. The issue is public and needs a GitHub account. The app sends nothing by itself.",
+    "send": "Open on GitHub",
+    "close": "Close",
+    "opened": "The page is open in your browser. Check the text and submit.",
+    "tooLong": "The text is too long for a link: an empty form opens, paste the text there."
   }
 }

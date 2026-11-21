@@ -268,7 +268,7 @@ function Configs() {
                 <button className="btn btn-quiet" onClick={() => void show(p.id)} aria-expanded={open === p.id}>
                   {t("performance.details")}
                 </button>
-                <button className={`btn ${applied ? "" : "btn-primary"}`} disabled={busy || applied || st.status.foreign} onClick={() => void run(p.id)}>
+                <button className={"btn"} disabled={busy || applied || st.status.foreign} onClick={() => void run(p.id)}>
                   {applied ? t("performance.applied") : t("performance.apply")}
                 </button>
               </div>

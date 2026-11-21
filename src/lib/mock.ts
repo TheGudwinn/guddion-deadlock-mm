@@ -170,6 +170,17 @@ export async function mockInvoke<T>(cmd: string, args?: Record<string, unknown>)
         { name: "pak05_dir.vpk", size: 27_900_000, entries: 90, error: null, content: hud, remote_id: null, enabled: true },
         { name: "broken_pak99_dir.vpk", size: 1024, entries: null, error: "bad vpk header", content: null, remote_id: null, enabled: false },
       ]);
+    case "fetch_content":
+      return r(
+        args?.kind === "news"
+          ? JSON.stringify([
+              { id: "n1", date: "2026-11-20", title: "Патч изменил камеру героев", text: "Часть модов с моделями может показывать героя со сбитой камерой. Диагностика находит такие моды.", tag: "Патч" },
+              { id: "n2", date: "2026-11-18", title: "Kea Mods 0.2: диагностика после патча", text: "Список модов на старой сборке и поиск виновника делением пополам.", tag: "Приложение" },
+            ])
+          : JSON.stringify([]),
+      );
+    case "scan_compat":
+      return r({ findings: [], fixed: [], details: { mods_scanned: 4, hero_models: 1, models_looked_into: 1, mods_unreadable: [], skipped: [] } });
     case "describe_installed":
       return r(CONTENTS);
     case "list_profiles":

@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { Profile } from "../../lib/api";
+import { call, type Profile } from "../../lib/api";
+import { openIssue } from "../../lib/github";
+import { codeModCount, parseCollections, useRemote } from "../../lib/remote";
+import Select from "../../components/Select";
 import EmptyState from "../../components/EmptyState";
 
 type Props = {
@@ -22,6 +25,22 @@ export default function Profiles({ profiles, busy, onCreate, onApply, onUpdate, 
   const { t } = useTranslation();
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
+  const collections = useRemote("collections", parseCollections);
+  const [suggest, setSuggest] = useState<{ id: string; note: string } | null>(null);
+  const [suggestNote, setSuggestNote] = useState<string | null>(null);
+  const sendSuggestion = async () => {
+    if (!suggest || !suggest.id) return;
+    const p = (profiles ?? []).find((x) => String(x.id) === suggest.id);
+    if (!p) return;
+    const profileCode = await call<string>("profile_code", { id: p.id });
+    const fence = "`".repeat(3);
+    const body = `**${p.name}**\n\n${suggest.note.trim()}\n\n${fence}\n${profileCode}\n${fence}`;
+    const fits = await openIssue(`[collection] ${p.name}`, body);
+    if (!fits) {
+      await navigator.clipboard.writeText(profileCode).catch(() => {});
+      setSuggestNote(t("collections.copied"));
+    } else setSuggestNote(t("collections.opened"));
+  };
   const [editing, setEditing] = useState<{ id: number; value: string } | null>(null);
 
   return (
@@ -143,6 +162,51 @@ export default function Profiles({ profiles, busy, onCreate, onApply, onUpdate, 
           );
         })}
       </ul>
+
+      <section className="block collections">
+        <div className="view-title-row">
+          <h2 className="block-title">{t("collections.title")}</h2>
+          <button className="btn" disabled={!profiles || profiles.length === 0} onClick={() => setSuggest(suggest ? null : { id: String(profiles?.[0]?.id ?? ""), note: "" })}>
+            {t("collections.suggest")}
+          </button>
+        </div>
+        <p className="note">{t("collections.text")}</p>
+        {suggest && (
+          <div className="notice ok-notice">
+            <b>{t("collections.suggestTitle")}</b>
+            <span>{t("collections.suggestText")}</span>
+            <Select label={t("collections.pickProfile")} value={suggest.id} onChange={(v) => setSuggest({ ...suggest, id: v })} options={(profiles ?? []).map((p) => ({ value: String(p.id), label: p.name }))} />
+            <input className="field" maxLength={300} value={suggest.note} placeholder={t("collections.notePlaceholder")} aria-label={t("collections.notePlaceholder")} onChange={(e) => setSuggest({ ...suggest, note: e.target.value })} />
+            <div className="row">
+              <button className="btn btn-primary" onClick={() => void sendSuggestion()}>
+                {t("collections.send")}
+              </button>
+            </div>
+            {suggestNote && <span>{suggestNote}</span>}
+          </div>
+        )}
+        {collections === null && <p className="note">{t("news.loading")}</p>}
+        {collections && collections.length === 0 && <p className="note">{t("collections.empty")}</p>}
+        {collections && collections.length > 0 && (
+          <ul className="collections-grid">
+            {collections.map((c) => {
+              const count = codeModCount(c.code);
+              return (
+                <li key={c.id} className="collection">
+                  <b>{c.name}</b>
+                  <p className="note">{c.description}</p>
+                  <div className="collection-foot">
+                    <span className="note">{[c.author, count != null ? t("collections.mods", { count }) : null].filter(Boolean).join(" · ")}</span>
+                    <button className="btn btn-sm" disabled={busy} onClick={() => void onImportCode(c.code)}>
+                      {t("collections.add")}
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </section>
     </section>
   );
 }

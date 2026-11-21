@@ -9,6 +9,8 @@ import StateMark from "../../components/StateMark";
 import { groupState, groupTitle, type ForeignGroup } from "../../lib/foreign";
 import { smallThumb, type CachedMod } from "../../lib/modcache";
 import { useAppearance } from "../../lib/appearance";
+import { openExternal } from "../../lib/open";
+import { parseNews, useRemote } from "../../lib/remote";
 
 type Props = {
   installed: InstalledMod[] | null;
@@ -36,20 +38,9 @@ type Shelf = { cat: Category; items: Mod[] };
 /** GameBanana serves a 530 px thumbnail by default; an 800 px version of the same file exists and is sharp enough for the hero. */
 const larger = (url: string) => url.replace("/530-90_", "/800-90_");
 
-function Ring({ value, label, caption }: { value: number | null; label: string; caption: string }) {
-  const pct = value == null ? 0 : Math.round(value * 100);
-  return (
-    <div className="ring-wrap">
-      <div className="ring" style={{ ["--p" as string]: `${pct}%` }} role="img" aria-label={`${caption}: ${value == null ? "-" : pct + "%"}`}>
-        <span>{value == null ? "–" : `${pct}%`}</span>
-      </div>
-      <div className="ring-caption">{label}</div>
-    </div>
-  );
-}
-
 export default function Home({ installed, groups, known, report, busy, onOpen, onToggle, onToggleForeign, onUpdate, onGo, game, launched, showOnboarding, onHideOnboarding, onPlay, onBrowse }: Props) {
   const { t } = useTranslation();
+  const news = useRemote("news", parseNews);
   const { home: show } = useAppearance();
   const [popular, setPopular] = useState<Mod[] | null>(null);
   const [offline, setOffline] = useState(false);
@@ -113,7 +104,6 @@ export default function Home({ installed, groups, known, report, busy, onOpen, o
   // Enabled mods first in this short list (the library keeps a fixed order).
   const foreignShown = [...groups].sort((a, b) => Number(b.enabled > 0) - Number(a.enabled > 0)).slice(0, Math.max(0, SHOWN - mods.length));
   const updateOf = (id: number) => report?.updates.find((u) => u.mod_id === id);
-  const upToDate = report && report.checked > 0 ? (report.checked - report.updates.length) / report.checked : null;
   const disk = mods.reduce((s, m) => s + m.files.reduce((a, f) => a + f.size, 0), 0) + groups.reduce((s, g) => s + g.size, 0);
 
   return (
@@ -211,8 +201,33 @@ export default function Home({ installed, groups, known, report, busy, onOpen, o
         )}
 
         <aside className="side">
+          <div className="panel panel-news">
+            <h3 className="panel-title">{t("news.title")}</h3>
+            {news === null && <p className="note">{t("news.loading")}</p>}
+            {news && news.length === 0 && <p className="note">{t("news.empty")}</p>}
+            {news && news.length > 0 && (
+              <ul className="newslist">
+                {news.slice(0, 4).map((n) => (
+                  <li key={n.id}>
+                    <div className="news-meta">
+                      {n.tag && <span className="tag">{n.tag}</span>}
+                      <time>{n.date}</time>
+                    </div>
+                    {n.url ? (
+                      <button className="link news-title" onClick={() => void openExternal(n.url!)}>
+                        {n.title}
+                      </button>
+                    ) : (
+                      <b className="news-title">{n.title}</b>
+                    )}
+                    {n.text && <p className="note">{n.text}</p>}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           {show.mine && (
-          <div className="panel">
+          <div className="panel panel-mine">
             <h3 className="panel-title">{t("home.mine")}</h3>
             {total === 0 ? (
               <div className="empty-panel">
@@ -234,7 +249,7 @@ export default function Home({ installed, groups, known, report, busy, onOpen, o
                         <b>{m.name}</b>
                         <small>{[m.version && `v${m.version}`, m.enabled ? t("library.enabled") : t("library.disabled")].filter(Boolean).join(" · ")}</small>
                         {up && (
-                          <button className="btn btn-sm btn-primary mine-update" disabled={busy} title={t("library.updateAvailable", { version: up.latest_version ? ` ${up.latest_version}` : "" })} onClick={() => onUpdate(m.id)}>
+                          <button className="btn btn-sm mine-update" disabled={busy} title={t("library.updateAvailable", { version: up.latest_version ? ` ${up.latest_version}` : "" })} onClick={() => onUpdate(m.id)}>
                             {t("library.update")}
                             {up.latest_version ? ` → ${up.latest_version}` : ""}
                           </button>
@@ -269,12 +284,25 @@ export default function Home({ installed, groups, known, report, busy, onOpen, o
           )}
 
           {show.stats && (
-          <div className="panel">
+          <div className="panel panel-stats">
             <h3 className="panel-title">{t("home.stats")}</h3>
-            <div className="rings">
-              <Ring value={total ? enabled / total : null} label={t("home.enabled", { on: enabled, total })} caption={t("home.ringEnabled")} />
-              <Ring value={upToDate} label={report ? t("home.uptodate", { count: report.updates.length }) : t("home.notChecked")} caption={t("home.ringUpToDate")} />
-            </div>
+            <ul className="statlist">
+              <li>
+                <div className="stat-line">
+                  <span>{t("home.ringEnabled")}</span>
+                  <b>{total ? `${enabled} / ${total}` : "–"}</b>
+                </div>
+                <div className="stat-bar" aria-hidden="true">
+                  <i style={{ width: `${total ? Math.round((enabled / total) * 100) : 0}%` }} />
+                </div>
+              </li>
+              <li>
+                <div className="stat-line">
+                  <span>{t("home.ringUpToDate")}</span>
+                  <b>{report ? (report.updates.length > 0 ? t("home.uptodate", { count: report.updates.length }) : t("home.allFresh")) : t("home.notChecked")}</b>
+                </div>
+              </li>
+            </ul>
             <dl className="facts">
               <div>
                 <dt>{t("home.disk")}</dt>

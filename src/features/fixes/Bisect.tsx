@@ -150,7 +150,7 @@ export default function Bisect({ mods, busy, gameFound, gameRunning, apply, onPl
           <b>{t("fixes.bisect.found", { name: name(culprit) })}</b>
           <span>{t("fixes.bisect.foundText")}</span>
           <div className="row">
-            <button className="btn btn-primary" disabled={lock} onClick={keepOff}>
+            <button className="btn" disabled={lock} onClick={keepOff}>
               {t("fixes.bisect.keepOff")}
             </button>
             <button className="btn" disabled={lock} onClick={() => void cancel()}>

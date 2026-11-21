@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import type { AddonContent, InstalledMod } from "../../lib/api";
+import { call, type AddonContent, type InstalledMod } from "../../lib/api";
 import { groupTitle, type ForeignGroup } from "../../lib/foreign";
 import type { CachedMod } from "../../lib/modcache";
 import { HEROES, heroOfCode } from "../../lib/heroes";
@@ -16,6 +16,8 @@ type Props = {
   onToggle: (modId: number, enabled: boolean) => void;
   onToggleForeign: (g: ForeignGroup, enabled: boolean) => void;
   onGoCatalog: () => void;
+  /** Opens the catalog searching for this text (a hero name). */
+  onFind: (text: string) => void;
 };
 
 type Skin = {
@@ -38,8 +40,14 @@ const slotOf = (name: string) => {
 };
 const plain = (n: string) => n.replace(/\.disabled$/i, "");
 
-export default function Skins({ mods, groups, known, contents, gameFound, onToggle, onToggleForeign, onGoCatalog }: Props) {
+export default function Skins({ mods, groups, known, contents, gameFound, onToggle, onToggleForeign, onGoCatalog, onFind }: Props) {
   const { t } = useTranslation();
+  // hero portraits for the list (a hero without one just shows the name)
+  const [portraits, setPortraits] = useState<Record<string, string>>({});
+  useEffect(() => {
+    call<Record<string, string>>("hero_portraits").then((r) => setPortraits(r ?? {}), () => {});
+  }, []);
+  const portrait = (name: string) => portraits[name.toLowerCase().replace(/^the /, "").replace(/[^\p{L}\p{N}]/gu, "")];
   const [query, setQuery] = useState("");
   const [picked, setPicked] = useState<string | null>(null);
   // undefined: what the hero wears now; null: the base game's model; a string: that mod's file
@@ -113,6 +121,7 @@ export default function Skins({ mods, groups, known, contents, gameFound, onTogg
               return (
                 <li key={h.name}>
                   <button className="skins-hero" aria-current={hero?.name === h.name ? "true" : undefined} onClick={() => pick(h.name)}>
+                    {portrait(h.name) ? <img className="skins-hero-ico" src={portrait(h.name)} alt="" loading="lazy" /> : <span className="skins-hero-ico skins-hero-ph" aria-hidden="true">{h.name.slice(0, 1)}</span>}
                     <span className="skins-hero-name">{h.name}</span>
                     <span className="skins-hero-sub">{on ? on.title : t("skins.default")}</span>
                     {all.length > 0 && <span className="rail-badge">{all.length}</span>}
@@ -122,6 +131,12 @@ export default function Skins({ mods, groups, known, contents, gameFound, onTogg
             })}
           </ul>
         </aside>
+        <div className="skins-stage">
+        <aside className="skins-preview block">
+          <h3 className="block-title">{t("skins.preview")}</h3>
+          <p className="note">{shownSkin ? shownSkin.title : t("skins.default")}</p>
+          {hero && <HeroViewer hero={hero.codes[0]} codes={shownSkin ? [shownSkin.code, ...hero.codes] : hero.codes} addon={shownSkin?.file ?? null} />}
+        </aside>
         <section className="skins-center">
           {hero && (
             <>
@@ -130,6 +145,15 @@ export default function Skins({ mods, groups, known, contents, gameFound, onTogg
                 <p className="note">
                   {t("skins.wearing")}: <b>{wearing ? wearing.title : t("skins.default")}</b> · {t("skins.count", { count: skins.length })}
                 </p>
+              </div>
+              <div className="block skins-find">
+                <div>
+                  <b>{t("skins.findTitle")}</b>
+                  <p className="note">{t("skins.findText", { name: hero.name })}</p>
+                </div>
+                <button className="btn" onClick={() => onFind(hero.name)}>
+                  {t("skins.findBtn", { name: hero.name })}
+                </button>
               </div>
               <div className="skins-list">
                 <button className="skin-card" aria-pressed={shown === null} onClick={() => setPreview(null)}>
@@ -161,11 +185,7 @@ export default function Skins({ mods, groups, known, contents, gameFound, onTogg
             </>
           )}
         </section>
-        <aside className="skins-preview block">
-          <h3 className="block-title">{t("skins.preview")}</h3>
-          <p className="note">{shownSkin ? shownSkin.title : t("skins.default")}</p>
-          {hero && <HeroViewer hero={hero.codes[0]} codes={shownSkin ? [shownSkin.code, ...hero.codes] : hero.codes} addon={shownSkin?.file ?? null} />}
-        </aside>
+        </div>
       </div>
     </div>
   );

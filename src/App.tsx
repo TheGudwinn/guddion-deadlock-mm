@@ -26,7 +26,9 @@ import { formatBytes, humanizeError } from "./lib/format";
 import { useCompat } from "./lib/compat";
 import { findSuspects, patchAcked } from "./lib/patch";
 import Activity, { type ActivityState } from "./components/Activity";
-import SessionFeed, { type FeedEntry } from "./components/SessionFeed";
+import ErrorBoundary from "./components/ErrorBoundary";
+import Feedback from "./components/Feedback";
+import TooltipLayer from "./components/TooltipLayer";
 import UpdateBanner from "./components/UpdateBanner";
 import WindowControls from "./components/WindowControls";
 import Icon from "./components/Icons";
@@ -35,7 +37,7 @@ import Confirm, { type ConfirmState } from "./components/Confirm";
 import History, { type HistoryItem } from "./components/History";
 import { setAppearance, useAppearance, useWallpaper } from "./lib/appearance";
 import Home from "./features/home/Home";
-import logo from "./assets/logo.png";
+import logo from "./assets/logo.svg";
 import Catalog from "./features/store/Catalog";
 import ModDrawer from "./features/store/ModDrawer";
 import Library from "./features/library/Library";
@@ -88,19 +90,10 @@ export default function App() {
   const [activity, setActivity] = useState<ActivityState | null>(null);
   const [update, setUpdate] = useState<UpdateInfo | null>(null);
   const [maximized, setMaximized] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [queue, setQueue] = useState<QueueRow[]>([]);
-  // what happened to mods since the app was started (shown in the left panel)
-  const [feed, setFeed] = useState<FeedEntry[]>([]);
   // bumped when an update ends, so the history on the downloads page is read again
   const [historyKey, setHistoryKey] = useState(0);
-  const feedBaseline = useRef<Set<number> | null>(null);
-  const touchFeed = useCallback((e: Omit<FeedEntry, "at">) => {
-    setFeed((prev) => {
-      const old = prev.find((x) => x.key === e.key);
-      if (old && old.state === e.state && old.name === e.name) return prev;
-      return [{ ...e, at: Date.now() }, ...prev.filter((x) => x.key !== e.key)].slice(0, 40);
-    });
-  }, []);
   const prevStates = useRef<Map<number, string>>(new Map());
   const compat = useCompat();
   const [modReport, setModReport] = useState<UpdateReport | null>(null);
@@ -259,10 +252,8 @@ export default function App() {
           else setActivity({ kind: "progress", text: t("activity.downloading", { name }), pct: p.total ? Math.round((p.downloaded / p.total) * 100) : null });
         })
       : () => {};
-    touchFeed({ key: `upf-${remoteId}`, kind: "update", name, state: "active" });
     const res = await run(() => call<InstallResult>("update_foreign", { remoteId, fileId: fileId ?? null, name }));
     unlisten();
-    touchFeed({ key: `upf-${remoteId}`, kind: "update", name, state: res ? "done" : "failed" });
     setHistoryKey((k) => k + 1);
     if (res) {
       setActivity({ kind: "ok", text: t("library.updated", { name: res.name }), sub: res.overlaps.length > 0 ? t("activity.overlaps", { count: new Set(res.overlaps.map((o) => o.with_addon)).size }) : undefined });
@@ -284,14 +275,11 @@ export default function App() {
       for (const id of ownIds) {
         const name = installed?.find((m) => m.id === id)?.name ?? "";
         say(name);
-        touchFeed({ key: `up-${id}`, kind: "update", name, state: "active" });
         try {
           await call("update_mod", { id });
           done++;
-          touchFeed({ key: `up-${id}`, kind: "update", name, state: "done" });
         } catch {
           failed.push(name);
-          touchFeed({ key: `up-${id}`, kind: "update", name, state: "failed" });
         }
       }
       for (const m of foreignMods) {
@@ -302,13 +290,10 @@ export default function App() {
             needChoice.push(m.name);
             continue;
           }
-          touchFeed({ key: `upf-${m.id}`, kind: "update", name: m.name, state: "active" });
           await call("update_foreign", { remoteId: m.id, fileId: null, name: m.name });
           done++;
-          touchFeed({ key: `upf-${m.id}`, kind: "update", name: m.name, state: "done" });
         } catch {
           failed.push(m.name);
-          touchFeed({ key: `upf-${m.id}`, kind: "update", name: m.name, state: "failed" });
         }
       }
     } finally {
@@ -332,10 +317,8 @@ export default function App() {
           else setActivity({ kind: "progress", text: t("activity.downloading", { name }), pct: p.total ? Math.round((p.downloaded / p.total) * 100) : null });
         })
       : () => {};
-    touchFeed({ key: `up-${id}`, kind: "update", name, state: "active" });
     const res = await run(() => call<InstallResult>("update_mod", { id }));
     unlisten();
-    touchFeed({ key: `up-${id}`, kind: "update", name, state: res ? "done" : "failed" });
     setHistoryKey((k) => k + 1);
     if (res) {
       setActivity({ kind: "ok", text: t("library.updated", { name: res.name }), sub: res.overlaps.length > 0 ? t("activity.overlaps", { count: new Set(res.overlaps.map((o) => o.with_addon)).size }) : undefined });
@@ -367,14 +350,7 @@ export default function App() {
     }
     prevStates.current = new Map(rows.map((r) => [r.id, r.state]));
     setQueue(rows);
-    // rows that were already finished when the app started belong to an earlier run
-    const live = ["queued", "downloading", "paused", "installing"];
-    if (!feedBaseline.current) feedBaseline.current = new Set(rows.filter((r) => !live.includes(r.state)).map((r) => r.id));
-    for (const r of rows) {
-      if (feedBaseline.current.has(r.id) || r.state === "cancelled") continue;
-      touchFeed({ key: `dl-${r.id}`, kind: "download", name: r.name, state: r.state === "done" ? "done" : r.state === "failed" ? "failed" : "active", rowId: r.id });
-    }
-  }, [t, refresh, markChanged, touchFeed]);
+  }, [t, refresh, markChanged]);
 
   useEffect(() => {
     void loadQueue();
@@ -612,7 +588,9 @@ export default function App() {
   // mods built for an older game build that a patch may have broken (hidden once the user dismisses the notice)
   const patchBuild = game?.build_id ?? null;
   const patchBadge = patchAcked(patchBuild) ? 0 : findSuspects(installed, contents, patchBuild, modReport).filter((x) => x.risk !== "low").length;
-  const order: View[] = ["home", "catalog", "profiles", "library", "skins", "downloads", "performance", "fixes", "settings"];
+  const order: View[] = ["home", "catalog", "library", "skins", "fixes", "settings"];
+  // pages that live under another rail item: profiles under the library, performance under diagnostics
+  const railOf = (v: View): View | null => (v === "profiles" ? "library" : v === "performance" ? "fixes" : v === "downloads" ? null : v);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
@@ -623,13 +601,23 @@ export default function App() {
         box?.select();
       } else if (e.altKey && !e.ctrlKey && /^[1-9]$/.test(e.key)) {
         e.preventDefault();
-        setView(order[Number(e.key) - 1]);
+        const next = order[Number(e.key) - 1];
+        if (next) setView(next);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `order` is a constant list
   }, []);
+  const diagTabs = (
+    <div className="tabs" role="tablist" aria-label={t("nav.fixes")}>
+      {(["fixes", "performance"] as const).map((id) => (
+        <button key={id} type="button" role="tab" aria-selected={view === id} className={`tab ${view === id ? "tab-on" : ""}`} onClick={() => setView(id)}>
+          {t(`diag.${id}`)}
+        </button>
+      ))}
+    </div>
+  );
   const hint = (id: View) => `${t(`nav.${id}`)}  ·  Alt+${order.indexOf(id) + 1}`;
   const activeProfile = profiles?.find((x) => x.active);
   const current = activeDownloads.find((r) => r.state === "downloading") ?? activeDownloads[0];
@@ -638,12 +626,6 @@ export default function App() {
   return (
     <div className={`shell ${maximized ? "maximized" : ""}`}>
       {wallpaper && <div className="wallpaper" aria-hidden="true" style={{ backgroundImage: `url(${wallpaper})` }} />}
-      <div className="aurora" aria-hidden="true">
-        <i />
-        <i />
-        <i />
-        <b />
-      </div>
       <nav ref={railRef} className={`rail ${look.rail === "open" ? "rail-open" : "rail-closed"}`} aria-label={t("app.name")}>
         <span className={`rail-ind ${indReady ? "rail-ind-ready" : ""}`} aria-hidden="true" style={ind ? { transform: `translateY(${ind.y}px)`, height: ind.h, opacity: 1 } : { opacity: 0 }} />
         <div className="rail-logo" data-tauri-drag-region title={t("app.name")}>
@@ -654,22 +636,23 @@ export default function App() {
           [
             ["home", "home", 0],
             ["catalog", "catalog", 0],
-            ["profiles", "profiles", 0],
             ["library", "library", modReport?.updates.length ?? 0],
             ["skins", "skins", 0],
-            ["downloads", "downloads", activeDownloads.length],
-            ["performance", "performance", 0],
             ["fixes", "fixes", patchBadge],
           ] as const
         ).map(([id, icon, badge]) => (
-          <button key={id} className="rail-item" data-tip={hint(id)} aria-current={view === id ? "page" : undefined} aria-label={t(`nav.${id}`)} aria-keyshortcuts={`Alt+${order.indexOf(id) + 1}`} onClick={() => setView(id)}>
+          <button key={id} className="rail-item" data-tip={hint(id)} aria-current={railOf(view) === id ? "page" : undefined} aria-label={t(`nav.${id}`)} aria-keyshortcuts={`Alt+${order.indexOf(id) + 1}`} onClick={() => setView(id)}>
             <Icon name={icon} />
             <span className="rail-label">{t(`nav.${id}`)}</span>
             {badge > 0 && <span className="rail-badge">{badge}</span>}
           </button>
         ))}
         <div className="rail-spacer" data-tauri-drag-region />
-        <SessionFeed entries={feed} queue={queue} onOpen={setView} />
+        {update && look.rail === "open" && <UpdateBanner info={update} progress={updatePct} onInstall={() => void installUpdate()} onDismiss={() => setUpdate(null)} />}
+        <button className="rail-item" data-tip={t("nav.feedback")} aria-label={t("nav.feedback")} onClick={() => setFeedbackOpen(true)}>
+          <Icon name="chat" />
+          <span className="rail-label">{t("nav.feedback")}</span>
+        </button>
         <button className="rail-item" data-tip={hint("settings")} aria-current={view === "settings" ? "page" : undefined} aria-label={t("nav.settings")} onClick={() => setView("settings")}>
           <Icon name="settings" />
           <span className="rail-label">{t("nav.settings")}</span>
@@ -715,17 +698,15 @@ export default function App() {
           )}
           <div className="spacer" data-tauri-drag-region />
           <div className="status" data-tauri-drag-region>
-            {current && (
-              <button className="chip chip-btn" onClick={() => setView("downloads")} title={t("downloads.title")}>
-                <Icon name="downloads" size={16} />
-                <span className="stat">{`${activeDownloads.length}${currentPct != null ? ` · ${currentPct}%` : ""}`}</span>
-                {currentPct != null && (
-                  <span className="chip-bar" aria-hidden="true">
-                    <i style={{ width: `${currentPct}%` }} />
-                  </span>
-                )}
-              </button>
-            )}
+            <button className="chip chip-btn" onClick={() => setView("downloads")} title={t("downloads.title")} aria-current={view === "downloads" ? "page" : undefined}>
+              <Icon name="downloads" size={16} />
+              {current && <span className="stat">{`${activeDownloads.length}${currentPct != null ? ` · ${currentPct}%` : ""}`}</span>}
+              {current && currentPct != null && (
+                <span className="chip-bar" aria-hidden="true">
+                  <i style={{ width: `${currentPct}%` }} />
+                </span>
+              )}
+            </button>
             {profiles && profiles.length > 0 && (
               <Select
                 className="select-profile"
@@ -738,34 +719,30 @@ export default function App() {
                 options={[...(activeProfile ? [] : [{ value: "", label: t("profiles.pick") }]), ...profiles.map((p) => ({ value: String(p.id), label: p.name }))]}
               />
             )}
-            {running ? (
-              <span className="chip chip-live" title={t("game.runningHint")}>
-                <span className="dot dot-pulse" />
-                {t("game.running")}
+            <div className="playblock">
+              <button className="btn btn-play" disabled={!game || launching || running} aria-busy={launching} onClick={() => void launchGame()} title={game ? t("game.playHint") : t("game.notFoundHint")}>
+                <Icon name="play" />
+                {running ? t("game.running") : launching ? t("game.starting") : t("game.play")}
+              </button>
+              <span className={`play-state ${!game && game !== undefined ? "is-bad" : pending && !running ? "is-warn" : running ? "is-live" : ""}`} title={game === null ? t("game.notFoundHint") : undefined}>
+                {game === undefined
+                  ? "…"
+                  : !game
+                    ? t("game.notFound")
+                    : running
+                      ? t("game.runningHint")
+                      : pending
+                        ? t("game.pending")
+                        : [game.build_id ? `#${game.build_id}` : t("game.found"), t("game.modsOn", { count: (installed ?? []).filter((m) => m.enabled).length })].join(" · ")}
               </span>
-            ) : (
-              pending && (
-                <span className="chip chip-warn" title={t("game.pendingHint")}>
-                  {t("game.pending")}
-                </span>
-              )
-            )}
-            <button className="btn btn-play" disabled={!game || launching || running} aria-busy={launching} onClick={() => void launchGame()} title={game ? t("game.playHint") : t("game.notFoundHint")}>
-              <Icon name="play" />
-              {running ? t("game.running") : launching ? t("game.starting") : t("game.play")}
-            </button>
-            <span className="chip" title={game === null ? t("game.notFoundHint") : game?.build_id ? t("game.build", { id: game.build_id }) : undefined}>
-              <span className={`dot ${game ? "" : "off"}`} />
-              {game === undefined ? "…" : game ? t("game.found") : t("game.notFound")}
-              {game?.build_id && <span className="stat">{`#${game.build_id}`}</span>}
-            </span>
+            </div>
             <History items={history} unread={unread} onOpen={() => setUnread(0)} onClear={() => setHistory([])} />
           </div>
           {isTauri && <WindowControls onMaximizedChange={setMaximized} />}
         </header>
 
       <main className="main">
-        {update && <UpdateBanner info={update} progress={updatePct} onInstall={() => void installUpdate()} onDismiss={() => setUpdate(null)} />}
+        <ErrorBoundary key={view}>
         {view === "home" ? (
           <Home
             installed={installed}
@@ -820,10 +797,15 @@ export default function App() {
             }}
           />
         ) : view === "skins" ? (
-          <Suspense fallback={null}><Skins mods={installed} groups={groups} known={known} contents={contents} gameFound={!!game} onToggle={toggle} onToggleForeign={toggleForeign} onGoCatalog={() => setView("catalog")} /></Suspense>
+          <Suspense fallback={null}><Skins mods={installed} groups={groups} known={known} contents={contents} gameFound={!!game} onToggle={toggle} onToggleForeign={toggleForeign} onGoCatalog={() => setView("catalog")} onFind={(text) => { setSearchText(text); setSearch((x) => ({ text, n: x.n + 1 })); setView("catalog"); }} /></Suspense>
         ) : view === "performance" ? (
-          <Performance />
+          <>
+            {diagTabs}
+            <Performance />
+          </>
         ) : view === "fixes" ? (
+          <>
+            {diagTabs}
           <Fixes
             game={game}
             compat={compat}
@@ -843,6 +825,7 @@ export default function App() {
               void refresh();
             }}
           />
+          </>
         ) : view === "profiles" ? (
           <Profiles
             profiles={profiles}
@@ -880,6 +863,7 @@ export default function App() {
             onBulkUpdate={(ids, foreignMods) => void bulkUpdate(ids, foreignMods)}
             onGoCatalog={() => setView("catalog")}
             onGoFixes={() => setView("fixes")}
+            onGoProfiles={() => setView("profiles")}
             compat={compat}
             gameFound={!!game}
             gameRunning={running}
@@ -887,10 +871,13 @@ export default function App() {
             onBulkRemove={bulkRemove}
           />
         )}
+        </ErrorBoundary>
       </main>
 
       </div>
 
+      <TooltipLayer />
+      {feedbackOpen && <Feedback build={game?.build_id ?? null} onClose={() => setFeedbackOpen(false)} />}
       {open && <ModDrawer mod={open} installed={installedIds.has(open.id)} queued={queuedModIds.has(open.id)} busy={busy} onClose={() => setOpen(null)} onInstall={(m, f) => void install(m, f)} />}
       {pick && (
         <>

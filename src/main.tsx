@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import "./i18n";
 import "./styles.css";
+import "./themes.css";
 import App from "./App";
 import { isTauri } from "./lib/api";
 import { applyAppearance } from "./lib/appearance";

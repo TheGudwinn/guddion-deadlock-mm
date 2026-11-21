@@ -19,14 +19,19 @@ type Props = {
 export default function Select({ value, options, onChange, label, disabled, className = "" }: Props) {
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  const [q, setQ] = useState("");
   const [pos, setPos] = useState<{ left: number; top?: number; bottom?: number; width: number; max: number } | null>(null);
   const btn = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLUListElement>(null);
+  const menuBox = useRef<HTMLDivElement>(null);
   const typed = useRef({ text: "", at: 0 });
   const id = useId();
 
   const { mounted: menuOn, closing } = useExit(open, 150);
   const current = options.find((o) => o.value === value);
+  // long lists (heroes) get a search box; the list narrows as you type
+  const searchable = options.length > 8;
+  const shown = q.trim() ? options.filter((o) => o.label.toLowerCase().includes(q.trim().toLowerCase())) : options;
   const close = useCallback((refocus = true) => {
     setOpen(false);
     if (refocus) btn.current?.focus();
@@ -34,6 +39,7 @@ export default function Select({ value, options, onChange, label, disabled, clas
 
   const show = () => {
     if (disabled) return;
+    setQ("");
     setActive(Math.max(0, options.findIndex((o) => o.value === value)));
     setOpen(true);
   };
@@ -57,10 +63,10 @@ export default function Select({ value, options, onChange, label, disabled, clas
     if (!open) return;
     const away = (e: Event) => {
       const n = e.target as Node;
-      if (!menu.current?.contains(n) && !btn.current?.contains(n)) setOpen(false);
+      if (!menuBox.current?.contains(n) && !btn.current?.contains(n)) setOpen(false);
     };
     const onScroll = (e: Event) => {
-      if (!menu.current?.contains(e.target as Node)) setOpen(false);
+      if (!menuBox.current?.contains(e.target as Node)) setOpen(false);
     };
     // Escape closes the menu even when focus is elsewhere, and does not also close a dialog behind it.
     const esc = (e: KeyboardEvent) => {
@@ -87,7 +93,7 @@ export default function Select({ value, options, onChange, label, disabled, clas
   }, [open, active]);
 
   const pick = (i: number) => {
-    const o = options[i];
+    const o = shown[i];
     if (o) onChange(o.value);
     close();
   };
@@ -106,13 +112,13 @@ export default function Select({ value, options, onChange, label, disabled, clas
       close();
     } else if (e.key === "ArrowDown") {
       e.preventDefault();
-      setActive((a) => Math.min(options.length - 1, a + 1));
+      setActive((a) => Math.min(shown.length - 1, a + 1));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setActive((a) => Math.max(0, a - 1));
     } else if (e.key === "Home" || e.key === "End") {
       e.preventDefault();
-      setActive(e.key === "Home" ? 0 : options.length - 1);
+      setActive(e.key === "Home" ? 0 : shown.length - 1);
     } else if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       pick(active);
@@ -124,6 +130,24 @@ export default function Select({ value, options, onChange, label, disabled, clas
       typed.current = { text: (now - typed.current.at > 700 ? "" : typed.current.text) + e.key.toLowerCase(), at: now };
       const hit = options.findIndex((o) => o.label.toLowerCase().startsWith(typed.current.text));
       if (hit >= 0) setActive(hit);
+    }
+  };
+
+  /** Keys inside the search box: arrows move, Enter picks, Escape closes. */
+  const onSearchKey = (e: React.KeyboardEvent) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActive((a) => Math.min(shown.length - 1, a + 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActive((a) => Math.max(0, a - 1));
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      pick(active);
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      close();
     }
   };
 
@@ -148,8 +172,24 @@ export default function Select({ value, options, onChange, label, disabled, clas
       {menuOn &&
         pos &&
         createPortal(
-          <ul ref={menu} id={id} role="listbox" aria-label={label} className={`select-menu ${closing ? "is-closing" : ""}`} style={{ left: pos.left, top: pos.top, bottom: pos.bottom, minWidth: pos.width, maxHeight: pos.max }}>
-            {options.map((o, i) => (
+          <div ref={menuBox} className={`select-menu ${closing ? "is-closing" : ""}`} style={{ left: pos.left, top: pos.top, bottom: pos.bottom, minWidth: pos.width, maxHeight: pos.max }}>
+            {searchable && (
+              <input
+                className="select-search"
+                autoFocus
+                value={q}
+                placeholder={label}
+                aria-label={label}
+                onChange={(e) => {
+                  setQ(e.target.value);
+                  setActive(0);
+                }}
+                onKeyDown={onSearchKey}
+              />
+            )}
+          <ul ref={menu} id={id} role="listbox" aria-label={label} className="select-list">
+            {shown.length === 0 && <li className="select-none">—</li>}
+            {shown.map((o, i) => (
               <li
                 key={o.value}
                 role="option"
@@ -163,7 +203,8 @@ export default function Select({ value, options, onChange, label, disabled, clas
                 {o.value === value && <Icon name="check" size={16} />}
               </li>
             ))}
-          </ul>,
+          </ul>
+          </div>,
           document.body,
         )}
     </>

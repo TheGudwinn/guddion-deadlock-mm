@@ -70,6 +70,31 @@ const paths: Record<string, ReactNode> = {
   bell: <path d="M6 16.5V11a6 6 0 1 1 12 0v5.5l1.5 1.5h-15L6 16.5ZM10 20.5a2 2 0 0 0 4 0" />,
   external: <path d="M9 5h10v10M19 5 8.5 15.5M5 9v10h10" />,
   trash: <path d="M5 7h14M10 7V5h4v2M7 7l.8 12h8.4L17 7M10.5 11v5M13.5 11v5" />,
+  frame: <path d="M4 9V5.5A1.5 1.5 0 0 1 5.5 4H9M15 4h3.5A1.5 1.5 0 0 1 20 5.5V9M20 15v3.5a1.5 1.5 0 0 1-1.5 1.5H15M9 20H5.5A1.5 1.5 0 0 1 4 18.5V15" />,
+  spin: <path d="M20 12a8 8 0 1 1-2.6-5.9M20 4.5v4h-4" />,
+  camera: (
+    <>
+      <path d="M4 8.5A1.5 1.5 0 0 1 5.5 7H8l1.3-2h5.4L16 7h2.5A1.5 1.5 0 0 1 20 8.5v8a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 16.5v-8Z" />
+      <circle cx="12" cy="12.5" r="3" />
+    </>
+  ),
+  video: (
+    <>
+      <rect x="3.5" y="6.5" width="12" height="11" rx="2" />
+      <path d="m15.5 11 5-2.5v7l-5-2.5" />
+    </>
+  ),
+  expand: <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />,
+  pause: <path d="M8 5.5v13M16 5.5v13" />,
+  sliders: <path d="M4 7h9M17 7h3M4 17h3M11 17h9M13 4.5v5M7 14.5v5" />,
+  image: (
+    <>
+      <rect x="4" y="5" width="16" height="14" rx="2" />
+      <circle cx="9" cy="10" r="1.6" />
+      <path d="m5 17 5-4.5 3.5 3 2.5-2L20 16" />
+    </>
+  ),
+  chat: <path d="M5 5h14a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1h-8l-4.5 3.5V16H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z" />,
   sort: <path d="M7 5v14M7 19l-3-3M7 19l3-3M17 19V5M17 5l-3 3M17 5l3 3" />,
 };
 

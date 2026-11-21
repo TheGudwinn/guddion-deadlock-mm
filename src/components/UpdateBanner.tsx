@@ -24,7 +24,7 @@ export default function UpdateBanner({ info, progress, onInstall, onDismiss }: P
         )}
       </div>
       <div className="update-actions">
-        <button className="btn btn-primary" disabled={busy} onClick={onInstall}>
+        <button className="btn" disabled={busy} onClick={onInstall}>
           {t("update.install")}
         </button>
         {!busy && (

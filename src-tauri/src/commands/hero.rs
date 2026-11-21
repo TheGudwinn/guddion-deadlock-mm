@@ -37,6 +37,11 @@ fn game_models(base: &source2_model::vpk_extract::VpkArchive, code: &str) -> Vec
     }
 }
 
+/// The base game's model path of a hero.
+pub fn base_model(base: &source2_model::vpk_extract::VpkArchive, code: &str) -> Option<String> {
+    game_models(base, code).into_iter().next()
+}
+
 /// The main model of a hero inside one VPK.
 fn pick_model(entries: &[String], codes: &[String], wanted: Vec<String>) -> Option<String> {
     let lower: Vec<String> = entries.iter().map(|e| e.to_ascii_lowercase()).collect();
@@ -72,6 +77,11 @@ fn pick_model(entries: &[String], codes: &[String], wanted: Vec<String>) -> Opti
 
 /// Decodes one hero; see `hero_model`.
 pub fn render(citadel: &Path, addons: &Path, hero: &str, codes: &[String], addon: Option<&str>) -> Result<Vec<u8>, String> {
+    render_clip(citadel, addons, hero, codes, addon, None)
+}
+
+/// Like `render`, with the game's animation `clip` (a file stem) playing instead of the idle one.
+pub fn render_clip(citadel: &Path, addons: &Path, hero: &str, codes: &[String], addon: Option<&str>, clip: Option<&str>) -> Result<Vec<u8>, String> {
         use source2_model::vpk_extract::VpkArchive;
         let code = hero.trim_start_matches("hero_").to_ascii_lowercase();
         if code.is_empty() || !code.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
@@ -107,21 +117,23 @@ pub fn render(citadel: &Path, addons: &Path, hero: &str, codes: &[String], addon
         };
         let out = source2_model::decode_model_glb_from_archive(archive, &model).map_err(err)?;
         // stand the hero in the game's idle pose instead of the stiff bind pose; the plain model is the fallback
-        let out = source2_model::pose_model_at_rest(out, &base, archive, &model);
+        let out = source2_model::pose_model_with_clip(out, &base, archive, &model, clip);
         Ok(out.glb)
 }
 
 /// The hero as a binary glTF. `addon` is the file name of a mod in the game's `addons` folder; without it
 /// the base game's model is drawn. Textures a mod does not carry are taken from the base game.
 #[tauri::command]
-pub async fn hero_model(state: State<'_, AppState>, hero: String, codes: Option<Vec<String>>, addon: Option<String>) -> Result<tauri::ipc::Response, String> {
+pub async fn hero_model(state: State<'_, AppState>, hero: String, codes: Option<Vec<String>>, addon: Option<String>, clip: Option<String>) -> Result<tauri::ipc::Response, String> {
     let g = game(&state)?;
     let cache = state.app_dir.join("hero-cache");
     tokio::task::spawn_blocking(move || -> Result<Vec<u8>, String> {
         let codes = codes.unwrap_or_default();
+        // only plain clip names are accepted (they end up in a cache key and a path lookup)
+        let clip = clip.filter(|c| !c.is_empty() && c.len() < 80 && c.chars().all(|ch| ch.is_ascii_alphanumeric() || ch == '_'));
         // A decoded hero is kept on disk: the key changes when the game or the mod file changes.
         let stamp = |p: &Path| std::fs::metadata(p).ok().map(|m| format!("{}:{:?}", m.len(), m.modified().ok())).unwrap_or_default();
-        let mut key = format!("v{CACHE_VERSION}|{hero}|{codes:?}|{}", stamp(&g.citadel_dir.join("pak01_dir.vpk")));
+        let mut key = format!("v{CACHE_VERSION}|{hero}|{codes:?}|{clip:?}|{}", stamp(&g.citadel_dir.join("pak01_dir.vpk")));
         if let Some(name) = &addon {
             let on = g.addons_dir.join(name);
             let path = if on.is_file() { on } else { g.addons_dir.join(format!("{name}.disabled")) };
@@ -131,7 +143,7 @@ pub async fn hero_model(state: State<'_, AppState>, hero: String, codes: Option<
         if let Ok(bytes) = std::fs::read(&file) {
             return Ok(bytes);
         }
-        let glb = render(&g.citadel_dir, &g.addons_dir, &hero, &codes, addon.as_deref())?;
+        let glb = render_clip(&g.citadel_dir, &g.addons_dir, &hero, &codes, addon.as_deref(), clip.as_deref())?;
         if std::fs::create_dir_all(&cache).is_ok() {
             let _ = std::fs::write(&file, &glb);
             prune(&cache);
@@ -143,8 +155,45 @@ pub async fn hero_model(state: State<'_, AppState>, hero: String, codes: Option<
     .map(tauri::ipc::Response::new)
 }
 
+/// Animations that mean something to a person looking at a skin. Directional run variants, aim offsets and
+/// additive layers are only building blocks of the game's animation graph.
+fn playable(stem: &str) -> bool {
+    const SKIP_START: &[&str] = &["aim_", "loco_", "corner_lean", "item_", "weapon_run", "weapon_crouch", "out_of_combat_run", "out_of_combat_crouch_run", "airdrop_", "zipline", "rope_", "mantle", "wall_", "turn_", "death_", "flinch", "knockdown_in_air", "kockdown"];
+    const SKIP_END: &[&str] = &["_n", "_ne", "_nw", "_e", "_w", "_s", "_se", "_sw", "_center", "_c", "_copy"];
+    !stem.contains('+') && !SKIP_START.iter().any(|p| stem.starts_with(p)) && !SKIP_END.iter().any(|p| stem.ends_with(p))
+}
+
+/// The clips of a hero's base-game model that are worth showing, by file stem. Mods replace models, not
+/// animations, so every skin of a hero plays the same ones.
+#[tauri::command]
+pub async fn hero_clips(state: State<'_, AppState>, hero: String) -> Result<Vec<String>, String> {
+    let g = game(&state)?;
+    tokio::task::spawn_blocking(move || -> Result<Vec<String>, String> {
+        use source2_model::vpk_extract::VpkArchive;
+        let code = hero.trim_start_matches("hero_").to_ascii_lowercase();
+        if code.is_empty() || !code.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
+            return Err("bad_hero".into());
+        }
+        let base = VpkArchive::open(&g.citadel_dir.join("pak01_dir.vpk")).map_err(err)?;
+        let model = game_models(&base, &code).into_iter().next().ok_or("no_base_model")?;
+        let listing = base.list_entries();
+        let mut out: Vec<String> = source2_model::nm_anim::model_clip_paths(&base, &model, &listing)
+            .iter()
+            .filter_map(|p| p.rsplit('/').next())
+            .filter_map(|f| f.strip_suffix(".vnmclip_c"))
+            .filter(|s| playable(s))
+            .map(str::to_string)
+            .collect();
+        out.sort();
+        out.dedup();
+        Ok(out)
+    })
+    .await
+    .map_err(err)?
+}
+
 /// Bumped when the decoder changes what it writes, so old cache files are not used.
-const CACHE_VERSION: u32 = 4;
+const CACHE_VERSION: u32 = 5;
 const CACHE_KEEP: usize = 40;
 
 /// Keeps the newest cached models only.
@@ -347,8 +396,37 @@ mod tests {
             let model = super::game_models(&base, code).remove(0);
             let clips = source2_model::nm_anim::model_clip_paths(&base, &model, &listing);
             let names: Vec<&str> = clips.iter().map(|c| c.rsplit('/').next().unwrap()).collect();
-            println!("NAMES {code} {} clips: {:?}", names.len(), names.iter().filter(|n| n.contains("idle") || n.contains("stand") || n.contains("rest")).collect::<Vec<_>>());
+            println!("NAMES {code} {} clips: {}", names.len(), names.join(" "));
         }
+    }
+
+    #[test]
+    #[ignore]
+    fn clip_render() {
+        let citadel = std::path::Path::new("D:/SteamLibrary/steamapps/common/Deadlock/game/citadel");
+        let addons = citadel.join("addons");
+        for (h, c) in [("lash", Some("ability_flog")), ("lash", None), ("orion", Some("ability_guided_arrow_fire")), ("orion", None), ("orion", Some("ability_generic_cast")), ("orion", Some("ability_power_jump_leap_up"))] {
+            let t0 = std::time::Instant::now();
+            let glb = super::render_clip(citadel, &addons, h, &[], None, c).unwrap();
+            let len = u32::from_le_bytes(glb[12..16].try_into().unwrap()) as usize;
+            let json: serde_json::Value = serde_json::from_slice(&glb[20..20 + len]).unwrap();
+            println!("CLIP {h} {c:?} {:?} {} KB anims={}", t0.elapsed(), glb.len() / 1024, json["animations"].as_array().map(|a| a.len()).unwrap_or(0));
+        }
+    }
+
+    #[test]
+    #[ignore]
+    fn dump_abilities() {
+        let citadel = std::path::Path::new("D:/SteamLibrary/steamapps/common/Deadlock/game/citadel");
+        let a = source2_model::vpk_extract::VpkArchive::open(&citadel.join("pak01_dir.vpk")).unwrap();
+        for e in a.list_entries().iter().filter(|e| e.contains("vdata_c") && e.starts_with("scripts/")) {
+            println!("VDATA {e}");
+        }
+        let b = a.extract_entry("scripts/abilities.vdata_c").unwrap();
+        let res = source2_model::Resource::parse(b).unwrap();
+        let v = source2_model::kv3::parse(res.block_bytes("DATA").unwrap()).unwrap();
+        std::fs::create_dir_all("D:/ref").unwrap();
+        std::fs::write("D:/ref/abilities_vdata.json", serde_json::to_string_pretty(&v.to_json()).unwrap()).unwrap();
     }
 
     #[test]

@@ -399,7 +399,19 @@ pub fn pose_model_at_rest(
     skin: &VpkArchive,
     entry_path: &str,
 ) -> ModelGlb {
-    match try_pose_model_at_rest(&model, base, skin, entry_path) {
+    pose_model_with_clip(model, base, skin, entry_path, None)
+}
+
+/// Like `pose_model_at_rest`, but plays the game's clip named `clip` (file stem, such as `ability_flog`)
+/// instead of the idle one. An unknown name falls back to the idle clip.
+pub fn pose_model_with_clip(
+    model: ModelGlb,
+    base: &VpkArchive,
+    skin: &VpkArchive,
+    entry_path: &str,
+    clip: Option<&str>,
+) -> ModelGlb {
+    match try_pose_model_at_rest(&model, base, skin, entry_path, clip) {
         Ok(Some(posed)) => posed,
         Ok(None) => model,
         Err(error) => {
@@ -444,6 +456,7 @@ fn try_pose_model_at_rest(
     base: &VpkArchive,
     skin: &VpkArchive,
     entry_path: &str,
+    wanted: Option<&str>,
 ) -> Result<Option<ModelGlb>> {
     // The skin's own VPK carries the skeleton when it ships the model; a
     // default-hero load reads it from the base game instead.
@@ -453,7 +466,18 @@ fn try_pose_model_at_rest(
     };
 
     // Use the base catalog to locate the clip, then honor a mod's explicit override.
-    let mut pose = match idle_clip_path(base, entry_path)? {
+    let chosen = match wanted {
+        Some(name) => {
+            let listing = base.list_entries();
+            nm_anim::model_clip_paths(base, entry_path, &listing).into_iter().find(|p| clip_stem(p) == name)
+        }
+        None => None,
+    };
+    let clip_path = match chosen {
+        Some(p) => Some(p),
+        None => idle_clip_path(base, entry_path)?,
+    };
+    let mut pose = match clip_path {
         Some(clip_path) => {
             let animation = nm_anim::load_nm_animation_from_archive(skin, &clip_path)
                 .inspect_err(|error| skin.record_preview_error(&clip_path, error))?;

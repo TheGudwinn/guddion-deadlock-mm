@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { useRef, useState } from "react";
-import { HUES, clearWallpaper, pickWallpaper, resetAppearance, setAppearance, useAppearance, useWallpaper, type Appearance as Look } from "../../lib/appearance";
+import { clearWallpaper, pickWallpaper, resetAppearance, setAppearance, useAppearance, useWallpaper, type Appearance as Look } from "../../lib/appearance";
 
 /** A row of mutually exclusive choices, shown as a segmented control. */
 function Seg<K extends string>({ label, value, options, onChange }: { label: string; value: K; options: { value: K; label: string }[]; onChange: (v: K) => void }) {
@@ -51,28 +51,8 @@ export default function Appearance() {
       <legend>{t("appearance.title")}</legend>
       <p className="note">{t("appearance.hint")}</p>
 
-      <Row title={t("appearance.accent")} hint={t("appearance.accentHint")}>
-        <div className="swatches" role="radiogroup" aria-label={t("appearance.accent")}>
-          {HUES.map((h) => (
-            <button
-              key={h.hue}
-              type="button"
-              role="radio"
-              aria-checked={a.hue === h.hue}
-              aria-label={t(`appearance.hues.${h.name}`)}
-              title={t(`appearance.hues.${h.name}`)}
-              className={`swatch ${a.hue === h.hue ? "swatch-on" : ""}`}
-              style={{ ["--sw" as string]: `hsl(${h.hue} 100% 72%)` }}
-              onClick={() => setAppearance({ hue: h.hue })}
-            />
-          ))}
-        </div>
-        <input className="range range-hue" type="range" min={0} max={360} value={a.hue} aria-label={t("appearance.hue")} onChange={(e) => setAppearance({ hue: Number(e.target.value) })} />
-      </Row>
-
-      <Row title={t("appearance.glow")} hint={t("appearance.glowHint")}>
-        <Seg label={t("appearance.glow")} value={a.glow} options={o("glow", ["live", "still", "off"], "glowMode")} onChange={(v) => setAppearance({ glow: v })} />
-        <input className="range" type="range" min={10} max={100} value={a.glowPower} disabled={a.glow === "off"} aria-label={t("appearance.glowPower")} onChange={(e) => setAppearance({ glowPower: Number(e.target.value) })} />
+      <Row title={t("appearance.theme")} hint={t("appearance.themeHint")}>
+        <Seg label={t("appearance.theme")} value={a.theme} options={o("theme", ["graphite", "glass"], "themes")} onChange={(v) => setAppearance({ theme: v })} />
       </Row>
 
       <Row title={t("appearance.wall")} hint={wallErr ? t("appearance.wallErr") : t("appearance.wallHint")}>
@@ -98,35 +78,16 @@ export default function Appearance() {
         </>
       )}
 
-      <Row title={t("appearance.surface")}>
-        <Seg label={t("appearance.surface")} value={a.surface} options={o("surface", ["night", "graphite", "black"], "surfaces")} onChange={(v) => setAppearance({ surface: v })} />
-      </Row>
-
       <Row title={t("appearance.motion")} hint={t("appearance.motionHint")}>
         <Seg label={t("appearance.motion")} value={a.motion} options={o("motion", ["full", "calm", "off"], "motions")} onChange={(v) => setAppearance({ motion: v })} />
-      </Row>
-
-      <Row title={t("appearance.radius")}>
-        <Seg label={t("appearance.radius")} value={a.radius} options={o("radius", ["sharp", "soft", "round"], "radii")} onChange={(v) => setAppearance({ radius: v })} />
       </Row>
 
       <Row title={t("appearance.density")}>
         <Seg label={t("appearance.density")} value={a.density} options={o("density", ["compact", "normal", "roomy"], "densities")} onChange={(v) => setAppearance({ density: v })} />
       </Row>
 
-      <Row title={t("appearance.cards")} hint={t("appearance.cardsHint")}>
-        <Seg label={t("appearance.cards")} value={a.cards} options={o("cards", ["s", "m", "l"], "cardSizes")} onChange={(v) => setAppearance({ cards: v })} />
-      </Row>
-
       <Row title={t("appearance.rail")}>
         <Seg label={t("appearance.rail")} value={a.rail} options={o("rail", ["open", "closed"], "rails")} onChange={(v) => setAppearance({ rail: v })} />
-      </Row>
-
-      <Row title={t("appearance.blur")} hint={t("appearance.blurHint")}>
-        <label className="check">
-          <input type="checkbox" checked={a.blur} onChange={(e) => setAppearance({ blur: e.target.checked })} />
-          <span>{a.blur ? t("appearance.on") : t("appearance.off")}</span>
-        </label>
       </Row>
 
       <Row title={t("appearance.home")} hint={t("appearance.homeHint")}>

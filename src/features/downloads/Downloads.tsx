@@ -108,12 +108,12 @@ export default function Downloads({ rows, onPause, onResume, onCancel, onRemove,
                   </button>
                 )}
                 {r.state === "paused" && (
-                  <button className="btn btn-primary" onClick={() => onResume(r.id)}>
+                  <button className="btn" onClick={() => onResume(r.id)}>
                     {t("downloads.resume")}
                   </button>
                 )}
                 {r.state === "failed" && (
-                  <button className="btn btn-primary" onClick={() => onResume(r.id)}>
+                  <button className="btn" onClick={() => onResume(r.id)}>
                     {t("downloads.retry")}
                   </button>
                 )}

@@ -155,7 +155,7 @@ export default function ModDrawer({ mod, installed, queued, busy, onClose, onIns
                       </div>
                       {!ok && <div className="file-sub">{t("drawer.unsupported", { ext: fileExt(f.name) || "?" })}</div>}
                       {ok && !installed && peek[f.id]?.state !== "done" && (
-                        <button className="link" disabled={peek[f.id]?.state === "loading"} onClick={() => void peekFile(f.id)}>
+                        <button className="link file-peek" title={t("drawer.peekHint")} disabled={peek[f.id]?.state === "loading"} onClick={() => void peekFile(f.id)}>
                           {peek[f.id]?.state === "loading" ? t("drawer.peeking") : t("drawer.peek")}
                         </button>
                       )}
